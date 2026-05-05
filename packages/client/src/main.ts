@@ -17,6 +17,9 @@ import { AudioManager } from './audio/AudioManager';
 import {
   MOVE_SPEED,
   SPRINT_MULTIPLIER,
+  JUMP_IMPULSE,
+  JUMP_CUT_MULTIPLIER,
+  GRAVITY,
   TICK_INTERVAL,
   SCOPE_SENSITIVITY_MULTIPLIER,
   HOLD_BREATH_DURATION,
@@ -183,6 +186,7 @@ async function main() {
   });
 
   // Replay function for server reconciliation
+  let replayJumpHeld = false;
   const replayFn = (state: PlayerState, input: InputPayload): PlayerState => {
     const dt = input.deltaTime;
     const speed = input.sprint ? MOVE_SPEED * SPRINT_MULTIPLIER : MOVE_SPEED;
@@ -203,12 +207,39 @@ async function main() {
     const moveX = (dx * cos + dz * sin) * speed * dt;
     const moveZ = (-dx * sin + dz * cos) * speed * dt;
 
+    // Vertical physics (must match server processInput)
+    let vy = state.velocity.y;
+    const isGrounded = state.position.y <= 0 && vy <= 0;
+
+    if (isGrounded && input.jump) {
+      vy = JUMP_IMPULSE;
+    }
+
+    // Variable jump height: cut upward velocity on early release
+    if (replayJumpHeld && !input.jump && vy > 0) {
+      vy *= JUMP_CUT_MULTIPLIER;
+    }
+
+    vy += GRAVITY * dt;
+
+    let newY = state.position.y + vy * dt;
+    if (newY <= 0 && vy < 0) {
+      newY = 0;
+      vy = 0;
+    }
+
+    replayJumpHeld = input.jump;
+
     return {
       ...state,
       position: {
         x: state.position.x + moveX,
-        y: state.position.y,
+        y: newY,
         z: state.position.z + moveZ,
+      },
+      velocity: {
+        ...state.velocity,
+        y: vy,
       },
     };
   };
@@ -238,7 +269,7 @@ async function main() {
     }
 
     // Poll input
-    const { dx, dy, keys, mouseDown } = inputManager.poll();
+    const { dx, dy, keys, mouseLeftDown, mouseRightDown: _mouseRightDown } = inputManager.poll();
 
     // Determine effective sensitivity (reduced when scoped)
     let currentSensitivity = inputManager.sensitivity;
@@ -279,7 +310,7 @@ async function main() {
     recoilSystem.update(dt);
 
     // Shooting (left mouse)
-    if (mouseDown && weaponManager.canFire()) {
+    if (mouseLeftDown && weaponManager.canFire()) {
       if (weaponManager.fire()) {
         const shotIndex = weaponManager.getShotIndex();
         const recoil = recoilSystem.applyRecoil(shotIndex);
@@ -347,7 +378,7 @@ async function main() {
         right: moveInput.right,
         jump: moveInput.jump,
         sprint: moveInput.sprint,
-        shoot: mouseDown,
+        shoot: mouseLeftDown,
         reload: keys.has('KeyR'),
         yaw: fpsCamera.yaw,
         pitch: fpsCamera.pitch,
@@ -357,7 +388,8 @@ async function main() {
       lastSendTime = now;
     }
 
-    // Process network messages
+    // Process network messages (reset replay jump state before reconciliation)
+    replayJumpHeld = false;
     const result = networkManager.processMessages(replayFn);
     if (result.correctedState) {
       localPlayer.applyServerState(result.correctedState);

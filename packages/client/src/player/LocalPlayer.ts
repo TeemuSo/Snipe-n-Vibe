@@ -8,6 +8,7 @@ import {
   SPRINT_MULTIPLIER,
   GRAVITY,
   JUMP_IMPULSE,
+  JUMP_CUT_MULTIPLIER,
   MAGAZINE_SIZE,
   MAX_HP,
 } from '@dayzcopy/shared';
@@ -31,6 +32,7 @@ export class LocalPlayer {
   isReloading = false;
   isSprinting = false;
   isGrounded = false;
+  jumpHeld = false;
 
   characterController: RAPIER.KinematicCharacterController;
   collider: RAPIER.Collider;
@@ -104,6 +106,11 @@ export class LocalPlayer {
       this.isGrounded = false;
     }
 
+    // Variable jump height: cut upward velocity on early release
+    if (this.jumpHeld && !input.jump && this.velocity.y > 0) {
+      this.velocity.y *= JUMP_CUT_MULTIPLIER;
+    }
+
     const desiredTranslation = {
       x: moveX * dt,
       y: this.velocity.y * dt,
@@ -134,6 +141,8 @@ export class LocalPlayer {
       y: finalPos.y - PLAYER_HEIGHT / 2,
       z: finalPos.z,
     };
+
+    this.jumpHeld = input.jump;
   }
 
   getState(): PlayerState {

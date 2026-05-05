@@ -6,6 +6,7 @@ import {
   MOVE_SPEED,
   SPRINT_MULTIPLIER,
   JUMP_IMPULSE,
+  JUMP_CUT_MULTIPLIER,
   GRAVITY,
   MAX_HP,
   FIRE_RATE,
@@ -24,6 +25,7 @@ export class PlayerEntity {
   isReloading: boolean;
   isSprinting: boolean;
   isGrounded: boolean;
+  jumpHeld: boolean;
   lastProcessedInput: number;
   lastFireTime: number;
   reloadStartTime: number;
@@ -49,6 +51,7 @@ export class PlayerEntity {
     this.isReloading = false;
     this.isSprinting = false;
     this.isGrounded = false;
+    this.jumpHeld = false;
     this.lastProcessedInput = 0;
     this.lastFireTime = 0;
     this.reloadStartTime = 0;
@@ -121,6 +124,11 @@ export class PlayerEntity {
       this.velocity.y = JUMP_IMPULSE;
     }
 
+    // Variable jump height: cut upward velocity on early release
+    if (this.jumpHeld && !input.jump && this.velocity.y > 0) {
+      this.velocity.y *= JUMP_CUT_MULTIPLIER;
+    }
+
     this.velocity.y += GRAVITY * dt;
 
     const translation = {
@@ -148,6 +156,7 @@ export class PlayerEntity {
       this.velocity.y = 0;
     }
 
+    this.jumpHeld = input.jump;
     this.lastProcessedInput = input.seq;
   }
 

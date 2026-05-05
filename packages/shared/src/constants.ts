@@ -5,6 +5,7 @@ export const MOVE_SPEED = 5.0;
 export const SPRINT_MULTIPLIER = 1.6;
 
 export const JUMP_IMPULSE = 5.0;
+export const JUMP_CUT_MULTIPLIER = 0.4; // velocity multiplier when releasing jump early
 export const GRAVITY = -9.81;
 
 export const PLAYER_HEIGHT = 1.8;

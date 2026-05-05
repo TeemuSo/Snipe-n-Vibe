@@ -2,14 +2,16 @@ export interface InputSnapshot {
   dx: number;
   dy: number;
   keys: Set<string>;
-  mouseDown: boolean;
+  mouseLeftDown: boolean;
+  mouseRightDown: boolean;
 }
 
 export class InputManager {
   private mouseDeltaX = 0;
   private mouseDeltaY = 0;
   private keys = new Set<string>();
-  private mouseDown = false;
+  private mouseLeftDown = false;
+  private mouseRightDown = false;
   private canvas: HTMLCanvasElement | null = null;
   sensitivity = 0.002;
 
@@ -34,12 +36,14 @@ export class InputManager {
       this.keys.delete(e.code);
     });
 
-    document.addEventListener('mousedown', () => {
-      this.mouseDown = true;
+    document.addEventListener('mousedown', (e: MouseEvent) => {
+      if (e.button === 0) this.mouseLeftDown = true;
+      if (e.button === 2) this.mouseRightDown = true;
     });
 
-    document.addEventListener('mouseup', () => {
-      this.mouseDown = false;
+    document.addEventListener('mouseup', (e: MouseEvent) => {
+      if (e.button === 0) this.mouseLeftDown = false;
+      if (e.button === 2) this.mouseRightDown = false;
     });
   }
 
@@ -52,7 +56,8 @@ export class InputManager {
       dx,
       dy,
       keys: new Set(this.keys),
-      mouseDown: this.mouseDown,
+      mouseLeftDown: this.mouseLeftDown,
+      mouseRightDown: this.mouseRightDown,
     };
   }
 
