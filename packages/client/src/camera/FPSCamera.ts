@@ -31,7 +31,7 @@ export class FPSCamera {
   private swayYawOffset: number = 0;
 
   constructor(aspect: number) {
-    this.camera = new THREE.PerspectiveCamera(DEFAULT_FOV, aspect, 0.1, 500);
+    this.camera = new THREE.PerspectiveCamera(DEFAULT_FOV, aspect, 0.1, 600);
   }
 
   update(mouseDX: number, mouseDY: number, sensitivity: number): void {

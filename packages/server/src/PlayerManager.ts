@@ -1,5 +1,5 @@
 import { WebSocket } from 'ws';
-import { Vec3, WorldSnapshot, PlayerState } from '@dayzcopy/shared';
+import { Vec3, WorldSnapshot, PlayerState, SPAWN_POINTS } from '@dayzcopy/shared';
 import { PlayerEntity } from './PlayerEntity';
 import { PhysicsWorld } from './PhysicsWorld';
 import { BotManager } from './BotManager';
@@ -9,17 +9,6 @@ export interface ServerPlayer {
   ws: WebSocket;
   entity: PlayerEntity;
 }
-
-const SPAWN_POSITIONS: Vec3[] = [
-  { x: -80, y: 1, z: -80 },
-  { x: 80, y: 1, z: -80 },
-  { x: -80, y: 1, z: 80 },
-  { x: 80, y: 1, z: 80 },
-  { x: 0, y: 1, z: -90 },
-  { x: 0, y: 1, z: 90 },
-  { x: -90, y: 1, z: 0 },
-  { x: 90, y: 1, z: 0 },
-];
 
 export class PlayerManager {
   private players: Map<number, ServerPlayer> = new Map();
@@ -81,7 +70,7 @@ export class PlayerManager {
   }
 
   getSpawnPosition(): Vec3 {
-    const index = Math.floor(Math.random() * SPAWN_POSITIONS.length);
-    return { ...SPAWN_POSITIONS[index] };
+    const index = Math.floor(Math.random() * SPAWN_POINTS.length);
+    return { ...SPAWN_POINTS[index] };
   }
 }

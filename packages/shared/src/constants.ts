@@ -32,4 +32,4 @@ export const MAX_INPUT_BUFFER = 64;
 export const INTERPOLATION_DELAY = 100;
 export const MAX_EXTRAPOLATION = 250;
 
-export const MAP_SIZE = 200;
+export const MAP_SIZE = 400;

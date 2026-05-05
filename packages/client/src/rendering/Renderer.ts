@@ -15,7 +15,7 @@ export class Renderer {
 
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x87ceeb);
-    this.scene.fog = new THREE.Fog(0x87ceeb, 50, 200);
+    this.scene.fog = new THREE.Fog(0x87ceeb, 100, 380);
 
     const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
     directionalLight.position.set(50, 100, 50);

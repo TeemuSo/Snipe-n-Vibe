@@ -5,6 +5,7 @@ import {
   PLAYER_HEIGHT,
   PLAYER_RADIUS,
   TICK_INTERVAL,
+  getAllMapBoxes,
 } from '@dayzcopy/shared';
 
 interface RaycastResult {
@@ -14,46 +15,13 @@ interface RaycastResult {
   distance?: number;
 }
 
-const BUILDING_POSITIONS = [
-  { x: -30, z: -30 },
-  { x: 30, z: 30 },
-  { x: -40, z: 40 },
-  { x: 50, z: -20 },
-  { x: 0, z: 60 },
-  { x: -60, z: 0 },
-];
-
-const BARRIER_POSITIONS: Vec3[] = [
-  { x: 10, y: 0.6, z: -10 },
-  { x: -15, y: 0.6, z: 15 },
-  { x: 20, y: 0.6, z: 5 },
-  { x: -25, y: 0.6, z: -5 },
-  { x: 5, y: 0.6, z: 25 },
-  { x: -10, y: 0.6, z: -25 },
-  { x: 35, y: 0.6, z: -35 },
-  { x: -35, y: 0.6, z: 35 },
-  { x: 45, y: 0.6, z: 15 },
-  { x: -50, y: 0.6, z: -15 },
-];
-
-const CRATE_POSITIONS: Vec3[] = [
-  { x: 15, y: 0.5, z: -20 },
-  { x: -20, y: 0.5, z: 10 },
-  { x: 25, y: 0.5, z: 25 },
-  { x: -30, y: 0.5, z: -20 },
-  { x: 15, y: 1.5, z: -20 },
-  { x: -20, y: 1.5, z: 10 },
-];
-
 export class PhysicsWorld {
   world: RAPIER.World;
 
   constructor() {
     this.world = new RAPIER.World({ x: 0, y: -9.81, z: 0 });
     this.buildTerrain();
-    this.buildBuildings();
-    this.buildBarriers();
-    this.buildCrates();
+    this.buildMapGeometry();
   }
 
   private buildTerrain(): void {
@@ -63,28 +31,10 @@ export class PhysicsWorld {
     this.world.createCollider(colliderDesc, body);
   }
 
-  private buildBuildings(): void {
-    for (const building of BUILDING_POSITIONS) {
-      const { x, z } = building;
-      const wallHeight = 4;
-      const wallLength = 10;
-      const wallThickness = 0.3;
-
-      this.createBox(x, wallHeight / 2, z - wallLength / 2, wallLength / 2, wallHeight / 2, wallThickness / 2);
-      this.createBox(x - wallLength / 2, wallHeight / 2, z, wallThickness / 2, wallHeight / 2, wallLength / 2);
-      this.createBox(x + wallLength / 2, wallHeight / 2, z, wallThickness / 2, wallHeight / 2, wallLength / 2);
-    }
-  }
-
-  private buildBarriers(): void {
-    for (const pos of BARRIER_POSITIONS) {
-      this.createBox(pos.x, pos.y, pos.z, 1, 0.6, 0.2);
-    }
-  }
-
-  private buildCrates(): void {
-    for (const pos of CRATE_POSITIONS) {
-      this.createBox(pos.x, pos.y, pos.z, 0.5, 0.5, 0.5);
+  private buildMapGeometry(): void {
+    const allBoxes = getAllMapBoxes();
+    for (const box of allBoxes) {
+      this.createBox(box.x, box.y, box.z, box.halfW, box.halfH, box.halfD);
     }
   }
 

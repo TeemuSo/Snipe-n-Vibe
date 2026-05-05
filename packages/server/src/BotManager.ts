@@ -8,6 +8,7 @@ import {
   PLAYER_RADIUS,
   MAP_SIZE,
   MAGAZINE_SIZE,
+  BOT_PATROL_POINTS,
 } from '@dayzcopy/shared';
 import { PhysicsWorld } from './PhysicsWorld';
 
@@ -26,24 +27,6 @@ interface Bot {
   state: 'moving' | 'waiting' | 'dead';
   respawnTimer: number;
 }
-
-const PATROL_POINTS: Vec3[] = [
-  { x: -20, y: 1, z: -20 },
-  { x: 20, y: 1, z: -20 },
-  { x: -20, y: 1, z: 20 },
-  { x: 20, y: 1, z: 20 },
-  { x: 0, y: 1, z: 0 },
-  { x: -40, y: 1, z: 0 },
-  { x: 40, y: 1, z: 0 },
-  { x: 0, y: 1, z: -40 },
-  { x: 0, y: 1, z: 40 },
-  { x: -50, y: 1, z: -30 },
-  { x: 50, y: 1, z: 30 },
-  { x: -30, y: 1, z: 50 },
-  { x: 30, y: 1, z: -50 },
-  { x: -60, y: 1, z: 20 },
-  { x: 60, y: 1, z: -20 },
-];
 
 const RESPAWN_TIME = 5000; // 5 seconds in ms
 const BOT_SPEED_MULTIPLIER = 0.5;
@@ -231,7 +214,7 @@ export class BotManager {
   }
 
   private randomPatrolPoint(): Vec3 {
-    const index = Math.floor(Math.random() * PATROL_POINTS.length);
-    return { ...PATROL_POINTS[index] };
+    const index = Math.floor(Math.random() * BOT_PATROL_POINTS.length);
+    return { ...BOT_PATROL_POINTS[index] };
   }
 }
