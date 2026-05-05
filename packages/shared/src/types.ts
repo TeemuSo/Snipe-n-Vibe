@@ -38,3 +38,10 @@ export interface WorldSnapshot {
   timestamp: number;
   players: PlayerState[];
 }
+
+export interface ScoreEntry {
+  id: number;
+  name: string;
+  kills: number;
+  deaths: number;
+}

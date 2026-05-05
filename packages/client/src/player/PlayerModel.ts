@@ -1,82 +1,112 @@
 import * as THREE from 'three';
-import { PLAYER_HEIGHT, PLAYER_RADIUS } from '@dayzcopy/shared';
 
 /**
- * Creates a humanoid player mesh with separate head and body hitboxes.
- * Head and body meshes have userData.playerId and userData.isHead set
- * so the ShootingSystem can identify what was hit.
+ * Creates a proper connected humanoid player mesh that looks like a soldier.
+ * All parts are positioned relative to a group where Y=0 is the feet.
+ * Head mesh has userData.isHead = true for headshot detection.
  */
-export function createPlayerMesh(color: number = 0x888888): THREE.Group {
+export function createPlayerMesh(color?: number): THREE.Group {
   const group = new THREE.Group();
 
-  // Derive colors from base
-  const headColor = new THREE.Color(color).offsetHSL(0, 0, 0.15).getHex();
-  const limbColor = new THREE.Color(color).offsetHSL(0, 0, -0.2).getHex();
+  // Color scheme
+  const skinColor = 0xD2A679;
+  const torsoColor = color ?? 0x3D4F2F; // dark olive tactical
+  const pantsColor = 0x2A3525;
+  const bootsColor = 0x1A1A1A;
 
-  // --- Head (sphere) ---
-  const headRadius = 0.15;
-  const headY = PLAYER_HEIGHT / 2 - headRadius; // relative to group center
-  const headGeo = new THREE.SphereGeometry(headRadius, 10, 8);
-  const headMat = new THREE.MeshLambertMaterial({ color: headColor });
-  const headMesh = new THREE.Mesh(headGeo, headMat);
-  headMesh.position.set(0, headY, 0);
-  headMesh.userData.isHead = true;
-  headMesh.name = 'head';
-  group.add(headMesh);
+  // --- Boots ---
+  const bootGeo = new THREE.BoxGeometry(0.1, 0.05, 0.15);
+  const bootMat = new THREE.MeshLambertMaterial({ color: bootsColor });
 
-  // --- Body/Torso (box) ---
-  const torsoWidth = 0.4;
-  const torsoHeight = 0.7;
-  const torsoDepth = 0.25;
-  const torsoY = PLAYER_HEIGHT * 0.55 - PLAYER_HEIGHT / 2; // relative to group center
-  const torsoGeo = new THREE.BoxGeometry(torsoWidth, torsoHeight, torsoDepth);
-  const torsoMat = new THREE.MeshLambertMaterial({ color });
-  const torsoMesh = new THREE.Mesh(torsoGeo, torsoMat);
-  torsoMesh.position.set(0, torsoY, 0);
-  torsoMesh.userData.isHead = false;
-  torsoMesh.name = 'body';
-  group.add(torsoMesh);
+  const leftBoot = new THREE.Mesh(bootGeo, bootMat);
+  leftBoot.position.set(-0.08, 0.025, 0.02);
+  leftBoot.userData.isHead = false;
+  leftBoot.name = 'boot-left';
+  group.add(leftBoot);
 
-  // --- Legs (two cylinders, visual only - not hittable separately) ---
-  const legRadius = 0.08;
-  const legHeight = 0.8;
-  const legY = -PLAYER_HEIGHT / 2 + legHeight / 2 + 0.02; // just above bottom
-  const legGeo = new THREE.CylinderGeometry(legRadius, legRadius, legHeight, 6);
-  const legMat = new THREE.MeshLambertMaterial({ color: limbColor });
+  const rightBoot = new THREE.Mesh(bootGeo, bootMat);
+  rightBoot.position.set(0.08, 0.025, 0.02);
+  rightBoot.userData.isHead = false;
+  rightBoot.name = 'boot-right';
+  group.add(rightBoot);
+
+  // --- Legs ---
+  const legGeo = new THREE.CylinderGeometry(0.07, 0.06, 0.8, 8);
+  const legMat = new THREE.MeshLambertMaterial({ color: pantsColor });
 
   const leftLeg = new THREE.Mesh(legGeo, legMat);
-  leftLeg.position.set(-0.1, legY, 0);
+  leftLeg.position.set(-0.08, 0.45, 0);
   leftLeg.userData.isHead = false;
   leftLeg.name = 'leg-left';
   group.add(leftLeg);
 
   const rightLeg = new THREE.Mesh(legGeo, legMat);
-  rightLeg.position.set(0.1, legY, 0);
+  rightLeg.position.set(0.08, 0.45, 0);
   rightLeg.userData.isHead = false;
   rightLeg.name = 'leg-right';
   group.add(rightLeg);
 
-  // --- Arms (two boxes, slight outward angle) ---
-  const armWidth = 0.12;
-  const armHeight = 0.6;
-  const armDepth = 0.12;
-  const armY = torsoY + 0.05;
-  const armGeo = new THREE.BoxGeometry(armWidth, armHeight, armDepth);
-  const armMat = new THREE.MeshLambertMaterial({ color: limbColor });
+  // --- Lower Torso ---
+  const lowerTorsoGeo = new THREE.BoxGeometry(0.3, 0.25, 0.18);
+  const lowerTorsoMat = new THREE.MeshLambertMaterial({ color: torsoColor });
+  const lowerTorso = new THREE.Mesh(lowerTorsoGeo, lowerTorsoMat);
+  lowerTorso.position.set(0, 0.95, 0);
+  lowerTorso.userData.isHead = false;
+  lowerTorso.name = 'torso-lower';
+  group.add(lowerTorso);
+
+  // --- Upper Torso ---
+  const upperTorsoGeo = new THREE.BoxGeometry(0.35, 0.3, 0.2);
+  const upperTorsoMat = new THREE.MeshLambertMaterial({ color: torsoColor });
+  const upperTorso = new THREE.Mesh(upperTorsoGeo, upperTorsoMat);
+  upperTorso.position.set(0, 1.2, 0);
+  upperTorso.userData.isHead = false;
+  upperTorso.name = 'torso-upper';
+  group.add(upperTorso);
+
+  // --- Arms ---
+  const armGeo = new THREE.CylinderGeometry(0.055, 0.05, 0.55, 8);
+  const armMat = new THREE.MeshLambertMaterial({ color: torsoColor });
 
   const leftArm = new THREE.Mesh(armGeo, armMat);
-  leftArm.position.set(-(torsoWidth / 2 + armWidth / 2 + 0.02), armY, 0);
-  leftArm.rotation.z = 0.1; // slight outward angle
+  leftArm.position.set(-0.23, 1.1, 0);
+  leftArm.rotation.z = 0.12; // slight outward angle (at ease)
   leftArm.userData.isHead = false;
   leftArm.name = 'arm-left';
   group.add(leftArm);
 
   const rightArm = new THREE.Mesh(armGeo, armMat);
-  rightArm.position.set(torsoWidth / 2 + armWidth / 2 + 0.02, armY, 0);
-  rightArm.rotation.z = -0.1; // slight outward angle
+  rightArm.position.set(0.23, 1.1, 0);
+  rightArm.rotation.z = -0.12; // slight outward angle (at ease)
   rightArm.userData.isHead = false;
   rightArm.name = 'arm-right';
   group.add(rightArm);
+
+  // --- Neck ---
+  const neckGeo = new THREE.CylinderGeometry(0.06, 0.06, 0.1, 8);
+  const neckMat = new THREE.MeshLambertMaterial({ color: skinColor });
+  const neck = new THREE.Mesh(neckGeo, neckMat);
+  neck.position.set(0, 1.4, 0);
+  neck.userData.isHead = false;
+  neck.name = 'neck';
+  group.add(neck);
+
+  // --- Head ---
+  const headGeo = new THREE.SphereGeometry(0.12, 12, 8);
+  const headMat = new THREE.MeshLambertMaterial({ color: skinColor });
+  const head = new THREE.Mesh(headGeo, headMat);
+  head.position.set(0, 1.55, 0);
+  head.userData.isHead = true;
+  head.name = 'head';
+  group.add(head);
+
+  // No shadows in this game
+  group.traverse((child) => {
+    if (child instanceof THREE.Mesh) {
+      child.castShadow = false;
+      child.receiveShadow = false;
+    }
+  });
 
   return group;
 }

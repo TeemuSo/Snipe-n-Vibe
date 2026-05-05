@@ -1,4 +1,4 @@
-import { InputPayload, Vec3, WorldSnapshot, PlayerState } from './types';
+import { InputPayload, Vec3, WorldSnapshot, PlayerState, ScoreEntry } from './types';
 
 export enum MessageType {
   CLIENT_INPUT = 1,
@@ -10,6 +10,8 @@ export enum MessageType {
   CLIENT_SHOOT = 7,
   SERVER_SHOOT_CONFIRM = 8,
   SERVER_INIT = 9,
+  SERVER_SCORES_UPDATE = 10,
+  CLIENT_REQUEST_SCORES = 11,
 }
 
 const HEADER_SIZE = 3;
@@ -363,6 +365,71 @@ function decodeShootConfirm(buffer: ArrayBuffer): { seq: number; hit: boolean; h
   return { seq, hit: hitType > 0, hitType };
 }
 
+export function encodeScoresUpdate(scores: ScoreEntry[]): ArrayBuffer {
+  const encoder = new TextEncoder();
+  // Calculate total size: header + playerCount(u8) + per player data
+  let payloadSize = 1; // playerCount
+  const encodedNames: Uint8Array[] = [];
+  for (let i = 0; i < scores.length; i++) {
+    const nameBytes = encoder.encode(scores[i].name);
+    encodedNames.push(nameBytes);
+    // id(u16) + kills(u16) + deaths(u16) + nameLength(u8) + name bytes
+    payloadSize += 2 + 2 + 2 + 1 + nameBytes.byteLength;
+  }
+
+  const totalSize = HEADER_SIZE + payloadSize;
+  const buffer = new ArrayBuffer(totalSize);
+  const view = new DataView(buffer);
+  const bytes = new Uint8Array(buffer);
+
+  writeHeader(view, MessageType.SERVER_SCORES_UPDATE, totalSize);
+
+  let offset = HEADER_SIZE;
+  view.setUint8(offset, scores.length); offset += 1;
+
+  for (let i = 0; i < scores.length; i++) {
+    const s = scores[i];
+    const nameBytes = encodedNames[i];
+    view.setUint16(offset, s.id, true); offset += 2;
+    view.setUint16(offset, s.kills, true); offset += 2;
+    view.setUint16(offset, s.deaths, true); offset += 2;
+    view.setUint8(offset, nameBytes.byteLength); offset += 1;
+    bytes.set(nameBytes, offset); offset += nameBytes.byteLength;
+  }
+
+  return buffer;
+}
+
+export function decodeScoresUpdate(buffer: ArrayBuffer): ScoreEntry[] {
+  const view = new DataView(buffer);
+  const bytes = new Uint8Array(buffer);
+  const decoder = new TextDecoder();
+  let offset = HEADER_SIZE;
+
+  const playerCount = view.getUint8(offset); offset += 1;
+  const scores: ScoreEntry[] = [];
+
+  for (let i = 0; i < playerCount; i++) {
+    const id = view.getUint16(offset, true); offset += 2;
+    const kills = view.getUint16(offset, true); offset += 2;
+    const deaths = view.getUint16(offset, true); offset += 2;
+    const nameLength = view.getUint8(offset); offset += 1;
+    const name = decoder.decode(bytes.slice(offset, offset + nameLength));
+    offset += nameLength;
+    scores.push({ id, name, kills, deaths });
+  }
+
+  return scores;
+}
+
+export function encodeRequestScores(): ArrayBuffer {
+  const totalSize = HEADER_SIZE;
+  const buffer = new ArrayBuffer(totalSize);
+  const view = new DataView(buffer);
+  writeHeader(view, MessageType.CLIENT_REQUEST_SCORES, totalSize);
+  return buffer;
+}
+
 export function decode(buffer: ArrayBuffer): { type: MessageType; data: any } {
   const view = new DataView(buffer);
   const type: MessageType = view.getUint8(0);
@@ -386,6 +453,10 @@ export function decode(buffer: ArrayBuffer): { type: MessageType; data: any } {
       return { type, data: decodeShootConfirm(buffer) };
     case MessageType.SERVER_INIT:
       return { type, data: decodeInit(buffer) };
+    case MessageType.SERVER_SCORES_UPDATE:
+      return { type, data: decodeScoresUpdate(buffer) };
+    case MessageType.CLIENT_REQUEST_SCORES:
+      return { type, data: null };
     default:
       throw new Error(`Unknown message type: ${type}`);
   }

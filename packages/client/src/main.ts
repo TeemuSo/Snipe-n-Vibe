@@ -13,6 +13,7 @@ import { WeaponManager } from './weapons/WeaponManager';
 import { RecoilSystem } from './weapons/RecoilSystem';
 import { ShootingSystem } from './weapons/ShootingSystem';
 import { HUD } from './hud/HUD';
+import { Scoreboard } from './hud/Scoreboard';
 import { AudioManager } from './audio/AudioManager';
 import {
   MOVE_SPEED,
@@ -29,6 +30,7 @@ import {
   PlayerState,
   Vec3,
 } from '@dayzcopy/shared';
+import { BulletTracerManager } from './rendering/BulletTracer';
 
 async function main() {
   const hud = new HUD();
@@ -102,8 +104,34 @@ async function main() {
   const recoilSystem = new RecoilSystem();
   const effectsManager = new EffectsManager(renderer.scene);
   const shootingSystem = new ShootingSystem(renderer.scene, fpsCamera.camera);
+  const bulletTracerManager = new BulletTracerManager(renderer.scene);
 
   const remotePlayers = new Map<number, RemotePlayer>();
+
+  // === MW2-style Kill Streak State ===
+  let killsThisLife = 0;
+  let totalKills = 0;
+  let currentStreak = 0;
+
+  // Streak thresholds
+  const STREAK_MESSAGES: [number, string][] = [
+    [2, 'DOUBLE KILL'],
+    [3, 'TRIPLE KILL'],
+    [5, 'KILLING SPREE'],
+    [7, 'RAMPAGE'],
+    [10, 'UNSTOPPABLE'],
+    [15, 'GODLIKE'],
+  ];
+
+  function getStreakMessage(streak: number): string | null {
+    // Find the highest threshold that matches
+    for (let i = STREAK_MESSAGES.length - 1; i >= 0; i--) {
+      if (streak === STREAK_MESSAGES[i][0]) {
+        return STREAK_MESSAGES[i][1];
+      }
+    }
+    return null;
+  }
 
   // Pause overlay: show when pointer lock is lost, hide when re-acquired
   document.addEventListener('pointerlockchange', () => {
@@ -168,19 +196,6 @@ async function main() {
   // Track last confirmed hit type for kill feedback (was it a headshot kill?)
   let lastConfirmedHitType = 0;
 
-  networkManager.onHitConfirmed = (_hit: boolean, hitType: number) => {
-    // Server authoritative confirmation — record type for kill feedback.
-    // Instant hit feedback is already provided by onLocalHit (client prediction).
-    // If server says headshot but client didn't predict it, upgrade the feedback.
-    if (hitType === 2) {
-      lastConfirmedHitType = 2;
-    } else if (hitType === 1) {
-      lastConfirmedHitType = 1;
-    } else {
-      lastConfirmedHitType = 0;
-    }
-  };
-
   networkManager.onDamageReceived = (damage: number, _shooterId: number) => {
     effectsManager.showDamageVignette();
     localPlayer.hp -= damage;
@@ -189,8 +204,15 @@ async function main() {
 
   networkManager.onPlayerDied = (deadId: number, killerId: number) => {
     if (deadId === networkManager.getLocalPlayerId()) {
+      // === Local player died ===
       hud.showDeathScreen(killerId);
       audioManager.playDeath();
+
+      // Reset streak on death
+      killsThisLife = 0;
+      currentStreak = 0;
+      hud.updateKillCounter(0);
+
       // Scope out on death
       if (weaponManager.isScoped) {
         weaponManager.scopeOut();
@@ -206,40 +228,70 @@ async function main() {
         localPlayer.hp = 100;
       }, 3000);
     } else if (killerId === networkManager.getLocalPlayerId()) {
-      // We killed someone - show kill confirmation
+      // === We killed someone — MW2 feedback ===
       const wasHeadshot = lastConfirmedHitType === 2;
+
+      // Update kill counts
+      killsThisLife++;
+      totalKills++;
+      currentStreak++;
+
+      // Show kill confirmation effects
       effectsManager.showKillConfirmation();
       hud.showKillConfirmation(deadId, wasHeadshot);
       audioManager.playKillConfirm();
+
+      // Update kill counter HUD
+      hud.updateKillCounter(killsThisLife);
+
+      // XP popup
+      const xp = wasHeadshot ? 150 : 100;
+      hud.showXPPopup(xp, wasHeadshot);
+
+      // Streak announcement
+      const streakMsg = getStreakMessage(currentStreak);
+      if (streakMsg) {
+        hud.showStreakAnnouncement(streakMsg);
+      }
+
       lastConfirmedHitType = 0;
+
+      // Play death animation on the killed remote player/bot
+      const rp = remotePlayers.get(deadId);
+      if (rp) {
+        rp.playDeathAnimation();
+        // Hide after 2 seconds (bot will reappear from snapshot when respawned)
+        setTimeout(() => {
+          rp.hide();
+        }, 2000);
+      }
+    } else {
+      // Someone else killed someone else — just play death animation
+      const rp = remotePlayers.get(deadId);
+      if (rp) {
+        rp.playDeathAnimation();
+        setTimeout(() => {
+          rp.hide();
+        }, 2000);
+      }
     }
+
     hud.addKillFeedEntry(`Player ${killerId}`, `Player ${deadId}`);
   };
 
-  // Provide world geometry to ShootingSystem for surface raycasting
-  shootingSystem.setWorldObjects(worldBuilder.structures);
-
-  // Local hit prediction callback - show instant feedback for headshot vs body
-  shootingSystem.onLocalHit = (_playerId: number, _point: Vec3, isHeadshot: boolean) => {
-    // Instant client-side feedback (server will confirm authoritatively)
-    if (isHeadshot) {
+  // Server-authoritative hit feedback (projectile-based — no client-side prediction)
+  networkManager.onHitConfirmed = (_hit: boolean, hitType: number) => {
+    if (hitType === 2) {
+      lastConfirmedHitType = 2;
       effectsManager.showHeadshotMarker();
       audioManager.playHeadshot();
-    } else {
+    } else if (hitType === 1) {
+      lastConfirmedHitType = 1;
       effectsManager.showHitMarker();
       audioManager.playHitMarker();
+    } else {
+      lastConfirmedHitType = 0;
     }
-  };
-
-  // Shooting callback - notify the server about shot
-  shootingSystem.onShoot = (origin: Vec3, direction: Vec3) => {
-    networkManager.sendShoot(origin, direction, 0);
-  };
-
-  // Surface hit callback - spawn bullet decal at impact point
-  shootingSystem.onSurfaceHit = (point: Vec3, normal: Vec3) => {
-    effectsManager.spawnBulletDecal(point, normal);
-    audioManager.playImpact();
   };
 
   // Pointer lock re-acquisition on canvas click (e.g., after pressing Escape)
@@ -313,9 +365,6 @@ async function main() {
     fpsCamera.resize(window.innerWidth / window.innerHeight);
   });
 
-  // Track previous scope state to detect transitions from auto re-scope
-  let wasScoped = false;
-
   // Game loop
   let lastTime = performance.now();
   let lastSendTime = 0;
@@ -338,12 +387,17 @@ async function main() {
     remotePlayers.forEach((rp, id) => {
       const interpolated = networkManager.getInterpolatedState(id, nowMs);
       if (interpolated) {
+        // If the player was dead and now reappears (server sent new position), reset them
+        if (rp.dead) {
+          rp.show();
+        }
         rp.updateFromState(interpolated);
       }
       rp.interpolate(dt);
     });
 
     effectsManager.update(now);
+    bulletTracerManager.update(dt);
 
     if (!inputManager.isLocked()) {
       renderer.render(fpsCamera.camera);
@@ -399,31 +453,28 @@ async function main() {
         fpsCamera.yaw += recoil.yawDelta;
         fpsCamera.pitch += recoil.pitchDelta;
 
-        // Get remote player meshes for raycasting
-        const remotePlayerMeshes: THREE.Object3D[] = [];
-        remotePlayers.forEach((rp) => remotePlayerMeshes.push(rp.mesh));
+        // Get camera direction for tracer and network shoot
+        const camDir = new THREE.Vector3();
+        fpsCamera.camera.getWorldDirection(camDir);
+        const origin: Vec3 = {
+          x: fpsCamera.camera.position.x,
+          y: fpsCamera.camera.position.y,
+          z: fpsCamera.camera.position.z,
+        };
+        const direction: Vec3 = { x: camDir.x, y: camDir.y, z: camDir.z };
 
-        shootingSystem.shoot(remotePlayerMeshes);
+        // Spawn visible tracer bullet
+        bulletTracerManager.spawnBullet(origin, direction);
+
+        // Send shot to server (server does projectile simulation)
+        networkManager.sendShoot(origin, direction, 0);
+
         effectsManager.spawnMuzzleFlash(localPlayer.position);
         audioManager.playGunshot();
 
-        // If was scoped, the weaponManager.fire() already kicked us out.
-        // Update camera/HUD to reflect scope-out.
-        if (wasScoped && !weaponManager.isScoped) {
-          fpsCamera.setScoped(false);
-          fpsCamera.setHoldingBreath(false);
-          isHoldingBreath = false;
-          hud.hideScope();
-        }
+        // Scope stays up — no scope-out on fire
       }
     }
-
-    // Detect scope state changes from auto re-scope
-    if (weaponManager.isScoped && !wasScoped) {
-      fpsCamera.setScoped(true);
-      hud.showScope();
-    }
-    wasScoped = weaponManager.isScoped;
 
     // Reload
     if (keys.has('KeyR')) weaponManager.reload();

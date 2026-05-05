@@ -116,6 +116,164 @@
       margin-bottom: 4px;
       opacity: 0.8;
     }
+
+    /* MW2-style Kill Counter */
+    #kill-counter {
+      position: absolute;
+      top: 20px; left: 50%;
+      transform: translateX(-50%);
+      font-size: 28px;
+      font-weight: bold;
+      font-family: 'Courier New', monospace;
+      color: #fff;
+      text-shadow: 0 0 6px rgba(0,0,0,0.9), 0 2px 4px rgba(0,0,0,0.5);
+      letter-spacing: 2px;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    #kill-counter.visible {
+      opacity: 1;
+    }
+
+    /* MW2-style XP Popup */
+    #xp-popup {
+      position: absolute;
+      top: 48%; left: 50%;
+      transform: translate(-50%, 0);
+      font-size: 22px;
+      font-weight: bold;
+      font-family: 'Courier New', monospace;
+      color: #FFD700;
+      text-shadow: 0 0 8px rgba(255,215,0,0.6), 0 0 16px rgba(255,215,0,0.3);
+      opacity: 0;
+      pointer-events: none;
+      letter-spacing: 1px;
+    }
+    #xp-popup.show {
+      animation: xpFloat 1.2s ease-out forwards;
+    }
+    #xp-popup.headshot-xp {
+      color: #FF4444;
+      text-shadow: 0 0 8px rgba(255,68,68,0.8), 0 0 16px rgba(255,0,0,0.4);
+      font-size: 26px;
+    }
+    @keyframes xpFloat {
+      0% { opacity: 1; transform: translate(-50%, 0) scale(1.3); }
+      20% { opacity: 1; transform: translate(-50%, -15px) scale(1.0); }
+      100% { opacity: 0; transform: translate(-50%, -50px) scale(0.8); }
+    }
+
+    /* MW2-style Streak Announcement */
+    #streak-announcement {
+      position: absolute;
+      top: 30%; left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 48px;
+      font-weight: bold;
+      font-family: 'Courier New', monospace;
+      color: #fff;
+      text-shadow: 0 0 20px rgba(255,255,255,0.8), 0 0 40px rgba(255,255,255,0.4), 0 0 80px rgba(255,200,0,0.3);
+      opacity: 0;
+      pointer-events: none;
+      letter-spacing: 6px;
+      text-transform: uppercase;
+    }
+    #streak-announcement.show {
+      animation: streakIn 1.8s ease-out forwards;
+    }
+    @keyframes streakIn {
+      0% { opacity: 0; transform: translate(-50%, -50%) scale(2.0); }
+      10% { opacity: 1; transform: translate(-50%, -50%) scale(1.0); }
+      60% { opacity: 1; transform: translate(-50%, -50%) scale(1.0); }
+      100% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+    }
+
+    /* Scoreboard */
+    #scoreboard {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      align-items: center;
+      justify-content: center;
+      z-index: 50;
+      pointer-events: none;
+    }
+    #scoreboard .scoreboard-inner {
+      background: rgba(10, 12, 16, 0.88);
+      border: 1px solid rgba(120, 140, 120, 0.35);
+      border-radius: 4px;
+      padding: 24px 32px 20px;
+      min-width: 520px;
+      max-width: 640px;
+      width: 50%;
+      box-shadow: 0 0 40px rgba(0,0,0,0.6), inset 0 0 60px rgba(0,0,0,0.3);
+    }
+    .scoreboard-title {
+      font-family: 'Courier New', monospace;
+      font-size: 18px;
+      font-weight: bold;
+      letter-spacing: 6px;
+      text-transform: uppercase;
+      color: rgba(180, 200, 180, 0.9);
+      text-align: center;
+      margin-bottom: 16px;
+      text-shadow: 0 0 8px rgba(120, 160, 120, 0.3);
+    }
+    #scoreboard-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-family: 'Courier New', monospace;
+      font-size: 14px;
+      color: rgba(220, 220, 220, 0.9);
+    }
+    #scoreboard-table thead th {
+      color: rgba(140, 160, 140, 0.8);
+      font-size: 11px;
+      font-weight: normal;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      padding: 6px 12px;
+      border-bottom: 1px solid rgba(120, 140, 120, 0.25);
+      text-align: left;
+    }
+    #scoreboard-table thead th:first-child {
+      width: 40px;
+      text-align: center;
+    }
+    #scoreboard-table thead th:nth-child(3),
+    #scoreboard-table thead th:nth-child(4),
+    #scoreboard-table thead th:nth-child(5) {
+      text-align: center;
+      width: 70px;
+    }
+    #scoreboard-table tbody td {
+      padding: 7px 12px;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+    }
+    #scoreboard-table tbody td:first-child {
+      text-align: center;
+      color: rgba(160, 170, 160, 0.6);
+    }
+    #scoreboard-table tbody td:nth-child(3),
+    #scoreboard-table tbody td:nth-child(4),
+    #scoreboard-table tbody td:nth-child(5) {
+      text-align: center;
+    }
+    #scoreboard-table tbody tr:hover {
+      background: rgba(255,255,255,0.03);
+    }
+    #scoreboard-table tbody tr.scoreboard-local {
+      background: rgba(100, 180, 100, 0.12);
+      color: #fff;
+    }
+    #scoreboard-table tbody tr.scoreboard-local td {
+      color: #fff;
+      text-shadow: 0 0 6px rgba(120, 200, 120, 0.3);
+    }
+    #scoreboard-table tbody tr.scoreboard-local td:first-child {
+      color: rgba(140, 220, 140, 0.9);
+    }
+
     #start-screen {
       position: fixed;
       top: 0; left: 0; right: 0; bottom: 0;
@@ -291,6 +449,9 @@
     <div id="ammo-display">5 / 5</div>
     <div id="hit-marker">X</div>
     <div id="kill-confirmation">ELIMINATED</div>
+    <div id="kill-counter">0</div>
+    <div id="xp-popup"></div>
+    <div id="streak-announcement"></div>
     <div id="damage-vignette"></div>
     <div id="kill-feed"></div>
     <div id="death-screen" style="display:none;position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(139,0,0,0.5);align-items:center;justify-content:center;flex-direction:column;">
@@ -303,6 +464,17 @@
     <div class="scope-crosshair-h"></div>
     <div class="scope-crosshair-v"></div>
     <div class="scope-center"></div>
+  </div>
+  <div id="scoreboard" style="display:none;">
+    <div class="scoreboard-inner">
+      <div class="scoreboard-title">SCOREBOARD</div>
+      <table id="scoreboard-table">
+        <thead><tr>
+          <th>#</th><th>Player</th><th>Kills</th><th>Deaths</th><th>K/D</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
   </div>
   <script type="module" src="/src/main.ts"></script>
 </body>

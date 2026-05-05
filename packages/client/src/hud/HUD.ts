@@ -7,6 +7,9 @@ export class HUD {
   private crosshair: HTMLElement | null;
   private scopeOverlay: HTMLElement | null;
   private killConfirmation: HTMLElement | null;
+  private killCounter: HTMLElement | null;
+  private xpPopup: HTMLElement | null;
+  private streakAnnouncement: HTMLElement | null;
 
   constructor() {
     this.healthFill = document.getElementById('health-fill');
@@ -17,6 +20,9 @@ export class HUD {
     this.crosshair = document.getElementById('crosshair');
     this.scopeOverlay = document.getElementById('scope-overlay');
     this.killConfirmation = document.getElementById('kill-confirmation');
+    this.killCounter = document.getElementById('kill-counter');
+    this.xpPopup = document.getElementById('xp-popup');
+    this.streakAnnouncement = document.getElementById('streak-announcement');
   }
 
   updateHealth(hp: number, maxHp: number): void {
@@ -66,6 +72,37 @@ export class HUD {
       this.killConfirmation.classList.add('headshot');
     }
     this.killConfirmation.classList.add('show');
+  }
+
+  updateKillCounter(kills: number): void {
+    if (!this.killCounter) return;
+    this.killCounter.textContent = `${kills}`;
+    if (kills > 0) {
+      this.killCounter.classList.add('visible');
+    } else {
+      this.killCounter.classList.remove('visible');
+    }
+  }
+
+  showXPPopup(xp: number, isHeadshot: boolean): void {
+    if (!this.xpPopup) return;
+    this.xpPopup.textContent = isHeadshot ? `+${xp} HEADSHOT` : `+${xp}`;
+    this.xpPopup.classList.remove('show', 'headshot-xp');
+    // Force reflow
+    void this.xpPopup.offsetWidth;
+    if (isHeadshot) {
+      this.xpPopup.classList.add('headshot-xp');
+    }
+    this.xpPopup.classList.add('show');
+  }
+
+  showStreakAnnouncement(text: string): void {
+    if (!this.streakAnnouncement) return;
+    this.streakAnnouncement.textContent = text;
+    this.streakAnnouncement.classList.remove('show');
+    // Force reflow
+    void this.streakAnnouncement.offsetWidth;
+    this.streakAnnouncement.classList.add('show');
   }
 
   addKillFeedEntry(killer: string, victim: string): void {

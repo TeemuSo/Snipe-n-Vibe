@@ -32,11 +32,8 @@ export class WeaponManager {
     this.lastShotTime = now;
     this.shotsFired++;
 
-    // If scoped, kick out and schedule auto re-scope
-    if (this.isScoped) {
-      this.scopeOut();
-      this.pendingRescopeTime = now + this.autoRescopeDelay;
-    }
+    // Keep scope up after firing — player watches tracer through scope
+    // Recoil still kicks the view, but scope stays active
 
     return true;
   }
@@ -63,12 +60,6 @@ export class WeaponManager {
 
     if (now - this.lastShotTime > 500) {
       this.shotsFired = 0;
-    }
-
-    // Auto re-scope after bolt action delay
-    if (this.pendingRescopeTime > 0 && now >= this.pendingRescopeTime) {
-      this.scopeIn();
-      this.pendingRescopeTime = 0;
     }
   }
 
