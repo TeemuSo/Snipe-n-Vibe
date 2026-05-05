@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DayZ Copy</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
+    canvas { display: block; width: 100%; height: 100%; }
+    #hud {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      pointer-events: none;
+      font-family: 'Courier New', monospace;
+      color: #fff;
+      z-index: 10;
+    }
+    #crosshair {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 20px; height: 20px;
+    }
+    #crosshair::before, #crosshair::after {
+      content: '';
+      position: absolute;
+      background: rgba(255,255,255,0.8);
+    }
+    #crosshair::before {
+      top: 50%; left: 0; right: 0;
+      height: 2px;
+      transform: translateY(-50%);
+    }
+    #crosshair::after {
+      left: 50%; top: 0; bottom: 0;
+      width: 2px;
+      transform: translateX(-50%);
+    }
+    #health-bar {
+      position: absolute;
+      bottom: 30px; left: 30px;
+      width: 200px; height: 8px;
+      background: rgba(255,255,255,0.2);
+      border-radius: 4px;
+    }
+    #health-fill {
+      height: 100%;
+      background: #4f4;
+      border-radius: 4px;
+      transition: width 0.2s;
+    }
+    #ammo-display {
+      position: absolute;
+      bottom: 30px; right: 30px;
+      font-size: 24px;
+      text-shadow: 0 0 4px rgba(0,0,0,0.8);
+    }
+    #ammo-display.low-ammo {
+      color: #f44336;
+    }
+    #hit-marker {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 24px;
+      opacity: 0;
+      transition: opacity 0.1s;
+      color: #f44;
+    }
+    #hit-marker.show { opacity: 1; }
+    #damage-vignette {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      pointer-events: none;
+      box-shadow: inset 0 0 100px rgba(255,0,0,0);
+      transition: box-shadow 0.3s;
+    }
+    #damage-vignette.hurt {
+      box-shadow: inset 0 0 100px rgba(255,0,0,0.4);
+    }
+    #kill-feed {
+      position: absolute;
+      top: 20px; right: 20px;
+      font-size: 14px;
+      text-align: right;
+    }
+    .kill-entry {
+      margin-bottom: 4px;
+      opacity: 0.8;
+    }
+    #start-screen {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0,0,0,0.9);
+      color: #fff;
+      font-family: 'Courier New', monospace;
+      font-size: 24px;
+      cursor: pointer;
+      z-index: 100;
+    }
+
+    /* Scope overlay */
+    #scope-overlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      z-index: 9;
+      pointer-events: none;
+    }
+    #scope-overlay .scope-vignette {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: radial-gradient(
+        circle at center,
+        transparent 0%,
+        transparent 32%,
+        rgba(0,0,0,0.3) 36%,
+        rgba(0,0,0,0.85) 40%,
+        #000 42%
+      );
+    }
+    #scope-overlay .scope-crosshair-h {
+      position: absolute;
+      top: 50%;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: rgba(0,0,0,0.6);
+      transform: translateY(-0.5px);
+    }
+    #scope-overlay .scope-crosshair-v {
+      position: absolute;
+      left: 50%;
+      top: 0;
+      bottom: 0;
+      width: 1px;
+      background: rgba(0,0,0,0.6);
+      transform: translateX(-0.5px);
+    }
+    /* Fine center dot */
+    #scope-overlay .scope-center {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 3px;
+      height: 3px;
+      background: rgba(255,0,0,0.8);
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+    }
+    /* Mil-dot style tick marks */
+    #scope-overlay .scope-ticks-h,
+    #scope-overlay .scope-ticks-v {
+      position: absolute;
+    }
+    #scope-overlay .scope-ticks-h {
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      display: flex;
+      align-items: center;
+      gap: 30px;
+      height: 1px;
+    }
+    #scope-overlay .scope-ticks-v {
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 30px;
+      width: 1px;
+    }
+    #scope-overlay .tick {
+      width: 8px;
+      height: 1px;
+      background: rgba(0,0,0,0.7);
+    }
+    #scope-overlay .tick-v {
+      width: 1px;
+      height: 8px;
+      background: rgba(0,0,0,0.7);
+    }
+    /* Scope ring border */
+    #scope-overlay .scope-ring {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 80vh;
+      height: 80vh;
+      border: 2px solid rgba(0,0,0,0.5);
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+    }
+  </style>
+</head>
+<body>
+  <div id="start-screen">Click to Play</div>
+  <div id="hud">
+    <div id="crosshair"></div>
+    <div id="health-bar"><div id="health-fill" style="width:100%"></div></div>
+    <div id="ammo-display">5 / 5</div>
+    <div id="hit-marker">X</div>
+    <div id="damage-vignette"></div>
+    <div id="kill-feed"></div>
+    <div id="death-screen" style="display:none;position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(139,0,0,0.5);align-items:center;justify-content:center;flex-direction:column;">
+      <div class="death-message" style="font-size:32px;color:#fff;">You died</div>
+    </div>
+  </div>
+  <div id="scope-overlay">
+    <div class="scope-vignette"></div>
+    <div class="scope-ring"></div>
+    <div class="scope-crosshair-h"></div>
+    <div class="scope-crosshair-v"></div>
+    <div class="scope-center"></div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
