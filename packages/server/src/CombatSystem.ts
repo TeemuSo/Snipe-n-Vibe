@@ -9,6 +9,8 @@ import {
 import { PlayerManager } from './PlayerManager';
 import { ProjectileManager } from './ProjectileManager';
 import { BotManager } from './BotManager';
+import { ScoreManager } from './ScoreManager';
+import { NetworkBroadcaster } from './NetworkBroadcaster';
 
 interface PendingShot {
   shooterId: number;
@@ -23,6 +25,9 @@ export class CombatSystem {
   private playerManager: PlayerManager;
   private projectileManager: ProjectileManager;
   private botManager: BotManager | null = null;
+  private scoreManager: ScoreManager | null = null;
+  private broadcaster: NetworkBroadcaster | null = null;
+  private botStartId: number = 1000;
 
   constructor(playerManager: PlayerManager, projectileManager: ProjectileManager) {
     this.playerManager = playerManager;
@@ -41,6 +46,15 @@ export class CombatSystem {
 
   setBotManager(botManager: BotManager): void {
     this.botManager = botManager;
+  }
+
+  setScoreManager(scoreManager: ScoreManager, botStartId: number): void {
+    this.scoreManager = scoreManager;
+    this.botStartId = botStartId;
+  }
+
+  setBroadcaster(broadcaster: NetworkBroadcaster): void {
+    this.broadcaster = broadcaster;
   }
 
   queueShot(shooterId: number, seq: number, origin: Vec3, direction: Vec3, tick: number): void {
@@ -99,6 +113,7 @@ export class CombatSystem {
 
         if (died) {
           this.broadcastAll(encodePlayerDied(targetId, shooterId));
+          this.recordKillAndBroadcastScores(shooterId, targetId);
         }
       } else {
         this.sendToPlayer(shooterId, encodeShootConfirm(seq, false, 0));
@@ -113,12 +128,24 @@ export class CombatSystem {
 
         if (died) {
           this.broadcastAll(encodePlayerDied(targetId, shooterId));
+          this.recordKillAndBroadcastScores(shooterId, targetId);
           const spawnPos = this.playerManager.getSpawnPosition();
           target.entity.respawn(spawnPos);
         }
       } else {
         this.sendToPlayer(shooterId, encodeShootConfirm(seq, false, 0));
       }
+    }
+  }
+
+  private recordKillAndBroadcastScores(killerId: number, deadId: number): void {
+    if (!this.scoreManager) return;
+    const killerKey = ScoreManager.keyForId(killerId, this.botStartId);
+    const deadKey = ScoreManager.keyForId(deadId, this.botStartId);
+    this.scoreManager.recordKill(killerKey);
+    this.scoreManager.recordDeath(deadKey);
+    if (this.broadcaster) {
+      this.broadcaster.broadcastScores(this.scoreManager.getScores());
     }
   }
 

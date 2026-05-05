@@ -16,6 +16,8 @@ import { NetworkBroadcaster } from './NetworkBroadcaster';
 import { InputProcessor } from './InputProcessor';
 import { LagCompensation } from './LagCompensation';
 import { BotManager } from './BotManager';
+import { ProjectileManager } from './ProjectileManager';
+import { ScoreManager } from './ScoreManager';
 
 const BOT_START_ID = 1000;
 const BOT_COUNT = 5;
@@ -26,18 +28,33 @@ async function main(): Promise<void> {
   const physicsWorld = new PhysicsWorld();
   const playerManager = new PlayerManager(physicsWorld);
   const lagCompensation = new LagCompensation();
-  const combatSystem = new CombatSystem(physicsWorld, playerManager, lagCompensation);
+  const projectileManager = new ProjectileManager(physicsWorld, playerManager);
+  const combatSystem = new CombatSystem(playerManager, projectileManager);
   const inputProcessor = new InputProcessor(physicsWorld, playerManager);
   const broadcaster = new NetworkBroadcaster(playerManager);
-  const gameLoop = new GameLoop(inputProcessor, physicsWorld, combatSystem, playerManager, lagCompensation, broadcaster);
+  const gameLoop = new GameLoop(inputProcessor, physicsWorld, combatSystem, playerManager, lagCompensation, broadcaster, projectileManager);
+
+  // Score manager (persists kills/deaths to scores.json)
+  const scoreManager = new ScoreManager();
 
   // Create and wire up bot manager
   const botManager = new BotManager(physicsWorld, BOT_START_ID);
   botManager.spawnBots(BOT_COUNT);
   playerManager.setBotManager(botManager);
   combatSystem.setBotManager(botManager);
+  combatSystem.setScoreManager(scoreManager, BOT_START_ID);
+  combatSystem.setBroadcaster(broadcaster);
+  projectileManager.setBotManager(botManager);
   gameLoop.setBotManager(botManager);
   console.log(`Spawned ${BOT_COUNT} bots (IDs ${BOT_START_ID}-${BOT_START_ID + BOT_COUNT - 1})`);
+
+  // Register bots in score manager with fun names
+  const BOT_NAMES = ['Ghost', 'Viper', 'Shadow', 'Phoenix', 'Reaper'];
+  for (let i = 0; i < BOT_COUNT; i++) {
+    const botId = BOT_START_ID + i;
+    const name = BOT_NAMES[i % BOT_NAMES.length];
+    scoreManager.registerPlayer(`bot_${botId}`, name);
+  }
 
   let nextPlayerId = 1;
 
@@ -48,9 +65,15 @@ async function main(): Promise<void> {
     const spawnPos = playerManager.getSpawnPosition();
     const player = playerManager.addPlayer(playerId, ws, spawnPos);
 
+    // Register player in score manager
+    scoreManager.registerPlayer(`player_${playerId}`, `Player ${playerId}`);
+
     const snapshot = playerManager.getSnapshot(gameLoop.getTick());
     const initBuffer = encodeInit(playerId, snapshot);
     ws.send(initBuffer);
+
+    // Send current scores to the newly connected player
+    broadcaster.sendScoresToPlayer(playerId, scoreManager.getScores());
 
     const joinBuffer = encodePlayerJoin(playerId, spawnPos);
     for (const other of playerManager.getAllPlayers()) {
@@ -84,6 +107,10 @@ async function main(): Promise<void> {
         case MessageType.CLIENT_SHOOT: {
           const shoot = decodeShoot(buffer);
           combatSystem.queueShot(playerId, shoot.seq, shoot.origin, shoot.direction, shoot.tick);
+          break;
+        }
+        case MessageType.CLIENT_REQUEST_SCORES: {
+          broadcaster.sendScoresToPlayer(playerId, scoreManager.getScores());
           break;
         }
       }

@@ -13,8 +13,6 @@ export class WeaponManager {
   isScoped: boolean = false;
   private scopeTransitionStart: number = 0;
   private scopeTransitionDuration: number = 200;
-  private pendingRescopeTime: number = 0;
-  private autoRescopeDelay: number = 800;
 
   canFire(): boolean {
     if (this.isReloading) return false;
@@ -46,7 +44,6 @@ export class WeaponManager {
     // Scope out when reloading
     if (this.isScoped) {
       this.scopeOut();
-      this.pendingRescopeTime = 0;
     }
   }
 
@@ -77,7 +74,6 @@ export class WeaponManager {
   toggleScope(): void {
     if (this.isScoped) {
       this.scopeOut();
-      this.pendingRescopeTime = 0;
     } else {
       this.scopeIn();
     }

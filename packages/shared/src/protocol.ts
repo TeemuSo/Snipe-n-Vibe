@@ -87,7 +87,7 @@ export function decodeInput(buffer: ArrayBuffer): InputPayload {
   };
 }
 
-const PLAYER_RECORD_SIZE = 2 + 4 + 4 + 4 + 4 + 4 + 1 + 1 + 4;
+const PLAYER_RECORD_SIZE = 2 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 1 + 1 + 4;
 
 export function encodeSnapshot(snapshot: WorldSnapshot, forPlayerId: number): ArrayBuffer {
   const playerCount = snapshot.players.length;
@@ -109,6 +109,9 @@ export function encodeSnapshot(snapshot: WorldSnapshot, forPlayerId: number): Ar
     view.setFloat32(offset, p.position.x, true); offset += 4;
     view.setFloat32(offset, p.position.y, true); offset += 4;
     view.setFloat32(offset, p.position.z, true); offset += 4;
+    view.setFloat32(offset, p.velocity.x, true); offset += 4;
+    view.setFloat32(offset, p.velocity.y, true); offset += 4;
+    view.setFloat32(offset, p.velocity.z, true); offset += 4;
     view.setFloat32(offset, p.yaw, true); offset += 4;
     view.setFloat32(offset, p.pitch, true); offset += 4;
     view.setUint8(offset, p.hp); offset += 1;
@@ -138,6 +141,9 @@ export function decodeSnapshot(buffer: ArrayBuffer): WorldSnapshot & { lastProce
     const x = view.getFloat32(offset, true); offset += 4;
     const y = view.getFloat32(offset, true); offset += 4;
     const z = view.getFloat32(offset, true); offset += 4;
+    const vx = view.getFloat32(offset, true); offset += 4;
+    const vy = view.getFloat32(offset, true); offset += 4;
+    const vz = view.getFloat32(offset, true); offset += 4;
     const yaw = view.getFloat32(offset, true); offset += 4;
     const pitch = view.getFloat32(offset, true); offset += 4;
     const hp = view.getUint8(offset); offset += 1;
@@ -147,7 +153,7 @@ export function decodeSnapshot(buffer: ArrayBuffer): WorldSnapshot & { lastProce
     players.push({
       id,
       position: { x, y, z },
-      velocity: { x: 0, y: 0, z: 0 },
+      velocity: { x: vx, y: vy, z: vz },
       yaw,
       pitch,
       hp,

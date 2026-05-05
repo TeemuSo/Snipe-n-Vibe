@@ -6,6 +6,7 @@ import { PlayerManager } from './PlayerManager';
 import { LagCompensation } from './LagCompensation';
 import { NetworkBroadcaster } from './NetworkBroadcaster';
 import { BotManager } from './BotManager';
+import { ProjectileManager } from './ProjectileManager';
 
 export class GameLoop {
   private tick: number = 0;
@@ -20,6 +21,7 @@ export class GameLoop {
   private lagCompensation: LagCompensation;
   private broadcaster: NetworkBroadcaster;
   private botManager: BotManager | null = null;
+  private projectileManager: ProjectileManager;
 
   constructor(
     inputProcessor: InputProcessor,
@@ -27,7 +29,8 @@ export class GameLoop {
     combatSystem: CombatSystem,
     playerManager: PlayerManager,
     lagCompensation: LagCompensation,
-    broadcaster: NetworkBroadcaster
+    broadcaster: NetworkBroadcaster,
+    projectileManager: ProjectileManager
   ) {
     this.inputProcessor = inputProcessor;
     this.physicsWorld = physicsWorld;
@@ -35,6 +38,7 @@ export class GameLoop {
     this.playerManager = playerManager;
     this.lagCompensation = lagCompensation;
     this.broadcaster = broadcaster;
+    this.projectileManager = projectileManager;
   }
 
   setBotManager(botManager: BotManager): void {
@@ -67,6 +71,7 @@ export class GameLoop {
     }
     this.physicsWorld.step();
     this.combatSystem.processPending(this.tick);
+    this.projectileManager.update(TICK_INTERVAL / 1000);
     this.playerManager.syncFromPhysics();
     this.lagCompensation.storeSnapshot(this.tick, this.playerManager.getSnapshot(this.tick));
     this.broadcaster.broadcast(this.tick);

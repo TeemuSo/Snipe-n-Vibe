@@ -10,6 +10,7 @@ import {
   PlayerState,
   Vec3,
   WorldSnapshot,
+  ScoreEntry,
   TICK_INTERVAL,
 } from '@dayzcopy/shared';
 
@@ -32,6 +33,7 @@ export class NetworkManager {
   public onDamageReceived: ((damage: number, shooterId: number) => void) | null = null;
   public onPlayerDied: ((deadId: number, killerId: number) => void) | null = null;
   public onInitReceived: ((playerId: number, snapshot: WorldSnapshot) => void) | null = null;
+  public onScoresUpdate: ((scores: ScoreEntry[]) => void) | null = null;
 
   constructor() {
     this.connection = new Connection();
@@ -216,6 +218,12 @@ export class NetworkManager {
           const { id } = data as { id: number };
           this.remotePlayers.delete(id);
           if (this.onPlayerLeave) this.onPlayerLeave(id);
+          break;
+        }
+
+        case MessageType.SERVER_SCORES_UPDATE: {
+          const scores = data as ScoreEntry[];
+          if (this.onScoresUpdate) this.onScoresUpdate(scores);
           break;
         }
       }

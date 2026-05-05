@@ -11,7 +11,7 @@ import { RemotePlayer } from './player/RemotePlayer';
 import { NetworkManager } from './network/NetworkManager';
 import { WeaponManager } from './weapons/WeaponManager';
 import { RecoilSystem } from './weapons/RecoilSystem';
-import { ShootingSystem } from './weapons/ShootingSystem';
+// ShootingSystem no longer used — replaced by projectile-based ballistics
 import { HUD } from './hud/HUD';
 import { Scoreboard } from './hud/Scoreboard';
 import { AudioManager } from './audio/AudioManager';
@@ -29,11 +29,13 @@ import {
   InputPayload,
   PlayerState,
   Vec3,
+  ScoreEntry,
 } from '@dayzcopy/shared';
 import { BulletTracerManager } from './rendering/BulletTracer';
 
 async function main() {
   const hud = new HUD();
+  const scoreboard = new Scoreboard();
   const audioManager = new AudioManager();
 
   // Network — connect early so we can show "Connecting..." state
@@ -103,7 +105,6 @@ async function main() {
   const weaponManager = new WeaponManager();
   const recoilSystem = new RecoilSystem();
   const effectsManager = new EffectsManager(renderer.scene);
-  const shootingSystem = new ShootingSystem(renderer.scene, fpsCamera.camera);
   const bulletTracerManager = new BulletTracerManager(renderer.scene);
 
   const remotePlayers = new Map<number, RemotePlayer>();
@@ -149,6 +150,30 @@ async function main() {
       inputManager.requestPointerLock();
     });
   }
+
+  // Tab key: hold to show scoreboard, release to hide
+  document.addEventListener('keydown', (e: KeyboardEvent) => {
+    if (e.code === 'Tab') {
+      e.preventDefault();
+      scoreboard.show();
+    }
+  });
+  document.addEventListener('keyup', (e: KeyboardEvent) => {
+    if (e.code === 'Tab') {
+      e.preventDefault();
+      scoreboard.hide();
+    }
+  });
+
+  // Score update callback
+  networkManager.onScoresUpdate = (scores: ScoreEntry[]) => {
+    scoreboard.updateScores(scores);
+  };
+
+  // Set local player ID on scoreboard when init is received
+  networkManager.onInitReceived = (_playerId: number, _snapshot) => {
+    scoreboard.setLocalPlayerId(_playerId);
+  };
 
   // Hold breath state
   let holdBreathStart = 0;

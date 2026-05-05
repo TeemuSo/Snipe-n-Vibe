@@ -1,4 +1,4 @@
-import { encodeSnapshot, WorldSnapshot } from '@dayzcopy/shared';
+import { encodeSnapshot, encodeScoresUpdate, WorldSnapshot, ScoreEntry } from '@dayzcopy/shared';
 import { PlayerManager } from './PlayerManager';
 
 export class NetworkBroadcaster {
@@ -38,5 +38,18 @@ export class NetworkBroadcaster {
       if (player.ws.readyState !== player.ws.OPEN) continue;
       player.ws.send(buffer);
     }
+  }
+
+  broadcastScores(scores: ScoreEntry[]): void {
+    const buffer = encodeScoresUpdate(scores);
+    for (const player of this.playerManager.getAllPlayers()) {
+      if (player.ws.readyState !== player.ws.OPEN) continue;
+      player.ws.send(buffer);
+    }
+  }
+
+  sendScoresToPlayer(playerId: number, scores: ScoreEntry[]): void {
+    const buffer = encodeScoresUpdate(scores);
+    this.sendToPlayer(playerId, buffer);
   }
 }
