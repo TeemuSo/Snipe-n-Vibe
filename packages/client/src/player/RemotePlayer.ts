@@ -11,6 +11,7 @@ export class RemotePlayer {
   targetYaw = 0;
   currentPosition: Vec3 = { x: 0, y: 0, z: 0 };
   currentYaw = 0;
+  private initialized = false;
 
   constructor(id: number, scene: THREE.Scene) {
     this.id = id;
@@ -20,6 +21,12 @@ export class RemotePlayer {
   }
 
   updateFromState(state: { position: Vec3; yaw: number; pitch: number }): void {
+    // On first update snap current position so the mesh doesn't lerp from origin
+    if (!this.initialized) {
+      this.currentPosition = { ...state.position };
+      this.currentYaw = state.yaw;
+      this.initialized = true;
+    }
     this.targetPosition = { ...state.position };
     this.targetYaw = state.yaw;
   }

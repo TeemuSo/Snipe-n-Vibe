@@ -101,13 +101,18 @@ export class NetworkManager {
           const { playerId, snapshot } = data as { playerId: number; snapshot: WorldSnapshot };
           this.localPlayerId = playerId;
 
-          // Initialize remote players from snapshot
+          // Initialize remote players from snapshot and fire onPlayerJoin so the
+          // caller can create Three.js meshes for each one (including bots).
+          const clientNow = performance.now();
           for (let j = 0; j < snapshot.players.length; j++) {
             const p = snapshot.players[j];
             if (p.id !== playerId) {
               const interpBuffer = new InterpolationBuffer();
-              interpBuffer.push(snapshot.timestamp, p.position, p.yaw, p.pitch);
+              // Use client time so interpolation samples work immediately
+              interpBuffer.push(clientNow, p.position, p.yaw, p.pitch);
               this.remotePlayers.set(p.id, { state: p, interpolation: interpBuffer });
+              // Fire the join callback so the visual mesh gets created
+              if (this.onPlayerJoin) this.onPlayerJoin(p.id, p.position);
             }
           }
 
@@ -118,6 +123,9 @@ export class NetworkManager {
         case MessageType.SERVER_SNAPSHOT: {
           const snapshot = data as WorldSnapshot & { lastProcessedInput: number };
           const currentRemoteIds = new Set<number>();
+          // Use client-local time for interpolation buffer so sample() works
+          // correctly — server timestamps are from a different time domain.
+          const clientNow = performance.now();
 
           for (let j = 0; j < snapshot.players.length; j++) {
             const p = snapshot.players[j];
@@ -141,7 +149,7 @@ export class NetworkManager {
               }
 
               remote.state = p;
-              remote.interpolation.push(snapshot.timestamp, p.position, p.yaw, p.pitch);
+              remote.interpolation.push(clientNow, p.position, p.yaw, p.pitch);
             }
           }
 
