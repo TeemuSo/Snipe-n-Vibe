@@ -10,6 +10,7 @@
     "dev:client": "npm -w packages/client run dev",
     "dev:server": "npm -w packages/server run dev",
     "build:shared": "npm -w packages/shared run build",
+    "build:client": "npx vite build packages/client",
     "build": "npm run build:shared && npm -w packages/client run build && npm -w packages/server run build"
   }
 }
