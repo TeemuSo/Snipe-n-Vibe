@@ -134,6 +134,73 @@ class AudioManager {
     };
   }
 
+  playHeadshot(): void {
+    if (!this.initialized) return;
+
+    const now = this.ctx.currentTime;
+
+    // Higher-pitched satisfying ding for headshots
+    const gain = this.ctx.createGain();
+    gain.gain.setValueAtTime(0.5, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+    gain.connect(this.masterGain);
+
+    const osc = this.ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(1600, now);
+    osc.frequency.exponentialRampToValueAtTime(1200, now + 0.2);
+    osc.connect(gain);
+    osc.start(now);
+    osc.stop(now + 0.2);
+    osc.onended = () => {
+      osc.disconnect();
+      gain.disconnect();
+    };
+
+    // Second harmonic for richness
+    const gain2 = this.ctx.createGain();
+    gain2.gain.setValueAtTime(0.25, now);
+    gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+    gain2.connect(this.masterGain);
+
+    const osc2 = this.ctx.createOscillator();
+    osc2.type = 'sine';
+    osc2.frequency.setValueAtTime(2400, now);
+    osc2.frequency.exponentialRampToValueAtTime(1800, now + 0.15);
+    osc2.connect(gain2);
+    osc2.start(now);
+    osc2.stop(now + 0.15);
+    osc2.onended = () => {
+      osc2.disconnect();
+      gain2.disconnect();
+    };
+  }
+
+  playKillConfirm(): void {
+    if (!this.initialized) return;
+
+    const now = this.ctx.currentTime;
+
+    // Satisfying two-tone "kill confirmed" ding
+    const gain = this.ctx.createGain();
+    gain.gain.setValueAtTime(0.4, now);
+    gain.gain.setValueAtTime(0.4, now + 0.08);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+    gain.connect(this.masterGain);
+
+    const osc = this.ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(800, now);
+    osc.frequency.setValueAtTime(1200, now + 0.08);
+    osc.connect(gain);
+    osc.start(now);
+    osc.stop(now + 0.3);
+    osc.onended = () => {
+      osc.disconnect();
+      gain.disconnect();
+    };
+  }
+
   playDeath(): void {
     if (!this.initialized) return;
 

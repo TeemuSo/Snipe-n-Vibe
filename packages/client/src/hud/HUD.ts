@@ -3,16 +3,20 @@ export class HUD {
   private ammoDisplay: HTMLElement | null;
   private killFeed: HTMLElement | null;
   private startScreen: HTMLElement | null;
+  private pauseOverlay: HTMLElement | null;
   private crosshair: HTMLElement | null;
   private scopeOverlay: HTMLElement | null;
+  private killConfirmation: HTMLElement | null;
 
   constructor() {
     this.healthFill = document.getElementById('health-fill');
     this.ammoDisplay = document.getElementById('ammo-display');
     this.killFeed = document.getElementById('kill-feed');
     this.startScreen = document.getElementById('start-screen');
+    this.pauseOverlay = document.getElementById('pause-overlay');
     this.crosshair = document.getElementById('crosshair');
     this.scopeOverlay = document.getElementById('scope-overlay');
+    this.killConfirmation = document.getElementById('kill-confirmation');
   }
 
   updateHealth(hp: number, maxHp: number): void {
@@ -50,6 +54,18 @@ export class HUD {
     if (this.scopeOverlay) this.scopeOverlay.style.display = 'none';
     if (this.crosshair) this.crosshair.style.display = 'block';
     if (this.ammoDisplay) this.ammoDisplay.style.display = 'block';
+  }
+
+  showKillConfirmation(victimId: number, isHeadshot: boolean): void {
+    if (!this.killConfirmation) return;
+    this.killConfirmation.textContent = isHeadshot ? 'HEADSHOT' : 'ELIMINATED';
+    this.killConfirmation.classList.remove('show', 'headshot');
+    // Force reflow
+    void this.killConfirmation.offsetWidth;
+    if (isHeadshot) {
+      this.killConfirmation.classList.add('headshot');
+    }
+    this.killConfirmation.classList.add('show');
   }
 
   addKillFeedEntry(killer: string, victim: string): void {
@@ -92,5 +108,30 @@ export class HUD {
   showStartScreen(): void {
     if (!this.startScreen) return;
     this.startScreen.style.display = 'flex';
+  }
+
+  /** Transition start screen from "Connecting..." to "Click to Play" */
+  showStartScreenReady(): void {
+    if (!this.startScreen) return;
+    this.startScreen.classList.remove('connecting');
+    const subtitle = this.startScreen.querySelector('.subtitle');
+    if (subtitle) {
+      subtitle.textContent = 'Click to Play';
+      subtitle.classList.add('visible');
+    }
+    const hints = this.startScreen.querySelector('.controls-hint');
+    if (hints) {
+      hints.classList.add('visible');
+    }
+  }
+
+  showPauseOverlay(): void {
+    if (!this.pauseOverlay) return;
+    this.pauseOverlay.style.display = 'flex';
+  }
+
+  hidePauseOverlay(): void {
+    if (!this.pauseOverlay) return;
+    this.pauseOverlay.style.display = 'none';
   }
 }

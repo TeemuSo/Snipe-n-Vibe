@@ -28,7 +28,7 @@ export class NetworkManager {
   // Callbacks
   public onPlayerJoin: ((id: number, pos: Vec3) => void) | null = null;
   public onPlayerLeave: ((id: number) => void) | null = null;
-  public onHitConfirmed: ((hit: boolean) => void) | null = null;
+  public onHitConfirmed: ((hit: boolean, hitType: number) => void) | null = null;
   public onDamageReceived: ((damage: number, shooterId: number) => void) | null = null;
   public onPlayerDied: ((deadId: number, killerId: number) => void) | null = null;
   public onInitReceived: ((playerId: number, snapshot: WorldSnapshot) => void) | null = null;
@@ -164,8 +164,8 @@ export class NetworkManager {
         }
 
         case MessageType.SERVER_SHOOT_CONFIRM: {
-          const { hit } = data as { seq: number; hit: boolean };
-          if (this.onHitConfirmed) this.onHitConfirmed(hit);
+          const { hit, hitType } = data as { seq: number; hit: boolean; hitType: number };
+          if (this.onHitConfirmed) this.onHitConfirmed(hit, hitType);
           break;
         }
 

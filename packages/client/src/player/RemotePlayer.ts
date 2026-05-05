@@ -17,6 +17,13 @@ export class RemotePlayer {
     this.id = id;
     const color = PLAYER_COLORS[id % PLAYER_COLORS.length];
     this.mesh = createPlayerMesh(color);
+
+    // Set playerId on the group itself AND all child meshes so raycasting can identify hits
+    this.mesh.userData.playerId = id;
+    this.mesh.traverse((child) => {
+      child.userData.playerId = id;
+    });
+
     scene.add(this.mesh);
   }
 

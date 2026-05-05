@@ -1,6 +1,8 @@
 import {
   Vec3,
   WEAPON_DAMAGE,
+  HEADSHOT_MULTIPLIER,
+  PLAYER_HEIGHT,
   encodeShootConfirm,
   encodePlayerHit,
   encodePlayerDied,
@@ -121,12 +123,14 @@ export class CombatSystem {
       if (rayResult.hit && rayResult.colliderHandle !== undefined) {
         let hitEntityId: number | null = null;
         let isHitBot = false;
+        let hitEntityPosition: Vec3 | null = null;
 
         // Check if a player was hit
         for (const player of allPlayers) {
           if (player.id === shot.shooterId) continue;
           if (player.entity.collider.handle === rayResult.colliderHandle) {
             hitEntityId = player.id;
+            hitEntityPosition = player.entity.position;
             break;
           }
         }
@@ -138,35 +142,47 @@ export class CombatSystem {
             if (bot.collider.handle === rayResult.colliderHandle) {
               hitEntityId = bot.id;
               isHitBot = true;
+              hitEntityPosition = bot.position;
               break;
             }
           }
         }
 
-        if (hitEntityId !== null) {
+        if (hitEntityId !== null && hitEntityPosition !== null) {
+          // Determine headshot based on hit point Y relative to entity position
+          // Head zone is the top 20% of player height
+          const hitPointY = rayResult.point!.y;
+          const entityBaseY = hitEntityPosition.y;
+          const headThreshold = entityBaseY + PLAYER_HEIGHT * 0.8;
+          const isHeadshot = hitPointY >= headThreshold;
+          const damage = isHeadshot
+            ? Math.round(WEAPON_DAMAGE * HEADSHOT_MULTIPLIER)
+            : WEAPON_DAMAGE;
+          const hitType = isHeadshot ? 2 : 1; // 2 = headshot, 1 = body
+
           if (isHitBot && this.botManager) {
             // Bot was hit
             const bot = this.botManager.getBot(hitEntityId);
             if (bot && bot.hp > 0) {
-              const died = this.botManager.applyDamage(hitEntityId, WEAPON_DAMAGE);
+              const died = this.botManager.applyDamage(hitEntityId, damage);
 
-              this.sendToPlayer(shot.shooterId, encodeShootConfirm(shot.seq, true));
-              this.broadcastAll(encodePlayerHit(shot.shooterId, hitEntityId, WEAPON_DAMAGE));
+              this.sendToPlayer(shot.shooterId, encodeShootConfirm(shot.seq, true, hitType));
+              this.broadcastAll(encodePlayerHit(shot.shooterId, hitEntityId, damage));
 
               if (died) {
                 this.broadcastAll(encodePlayerDied(hitEntityId, shot.shooterId));
               }
             } else {
-              this.sendToPlayer(shot.shooterId, encodeShootConfirm(shot.seq, false));
+              this.sendToPlayer(shot.shooterId, encodeShootConfirm(shot.seq, false, 0));
             }
           } else {
             // Player was hit
             const target = this.playerManager.getPlayer(hitEntityId);
             if (target && target.entity.hp > 0) {
-              const died = target.entity.applyDamage(WEAPON_DAMAGE);
+              const died = target.entity.applyDamage(damage);
 
-              this.sendToPlayer(shot.shooterId, encodeShootConfirm(shot.seq, true));
-              this.broadcastAll(encodePlayerHit(shot.shooterId, hitEntityId, WEAPON_DAMAGE));
+              this.sendToPlayer(shot.shooterId, encodeShootConfirm(shot.seq, true, hitType));
+              this.broadcastAll(encodePlayerHit(shot.shooterId, hitEntityId, damage));
 
               if (died) {
                 this.broadcastAll(encodePlayerDied(hitEntityId, shot.shooterId));
@@ -174,14 +190,14 @@ export class CombatSystem {
                 target.entity.respawn(spawnPos);
               }
             } else {
-              this.sendToPlayer(shot.shooterId, encodeShootConfirm(shot.seq, false));
+              this.sendToPlayer(shot.shooterId, encodeShootConfirm(shot.seq, false, 0));
             }
           }
         } else {
-          this.sendToPlayer(shot.shooterId, encodeShootConfirm(shot.seq, false));
+          this.sendToPlayer(shot.shooterId, encodeShootConfirm(shot.seq, false, 0));
         }
       } else {
-        this.sendToPlayer(shot.shooterId, encodeShootConfirm(shot.seq, false));
+        this.sendToPlayer(shot.shooterId, encodeShootConfirm(shot.seq, false, 0));
       }
     }
 

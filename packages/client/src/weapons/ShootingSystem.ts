@@ -7,7 +7,7 @@ export class ShootingSystem {
   private camera: THREE.PerspectiveCamera;
   private worldObjects: THREE.Object3D[] = [];
   public onShoot: ((origin: Vec3, direction: Vec3) => void) | null = null;
-  public onLocalHit: ((playerId: number, point: Vec3) => void) | null = null;
+  public onLocalHit: ((playerId: number, point: Vec3, isHeadshot: boolean) => void) | null = null;
   public onSurfaceHit: ((point: Vec3, normal: Vec3) => void) | null = null;
 
   constructor(scene: THREE.Scene, camera: THREE.PerspectiveCamera) {
@@ -21,7 +21,7 @@ export class ShootingSystem {
     this.worldObjects = objects;
   }
 
-  shoot(remotePlayers: THREE.Object3D[]): { hit: boolean; point?: Vec3; playerId?: number } {
+  shoot(remotePlayers: THREE.Object3D[]): { hit: boolean; point?: Vec3; playerId?: number; isHeadshot?: boolean } {
     const origin: Vec3 = {
       x: this.camera.position.x,
       y: this.camera.position.y,
@@ -44,9 +44,17 @@ export class ShootingSystem {
     // Determine closest player hit
     let closestPlayerHit: THREE.Intersection | null = null;
     let playerId: number | undefined;
+    let isHeadshot = false;
     if (playerIntersections.length > 0) {
       closestPlayerHit = playerIntersections[0];
       let targetObject: THREE.Object3D | null = closestPlayerHit.object;
+
+      // Check if the directly hit object is the head
+      if (targetObject.userData && targetObject.userData.isHead === true) {
+        isHeadshot = true;
+      }
+
+      // Traverse up to find playerId
       while (targetObject) {
         if (targetObject.userData && targetObject.userData.playerId !== undefined) {
           playerId = targetObject.userData.playerId;
@@ -62,7 +70,7 @@ export class ShootingSystem {
       closestWorldHit = worldIntersections[0];
     }
 
-    let result: { hit: boolean; point?: Vec3; playerId?: number };
+    let result: { hit: boolean; point?: Vec3; playerId?: number; isHeadshot?: boolean };
 
     // Compare distances to find the overall closest hit
     const playerDist = closestPlayerHit ? closestPlayerHit.distance : Infinity;
@@ -75,10 +83,10 @@ export class ShootingSystem {
         y: closestPlayerHit.point.y,
         z: closestPlayerHit.point.z,
       };
-      result = { hit: true, point, playerId };
+      result = { hit: true, point, playerId, isHeadshot };
 
       if (this.onLocalHit) {
-        this.onLocalHit(playerId, point);
+        this.onLocalHit(playerId, point, isHeadshot);
       }
     } else if (closestWorldHit) {
       // World surface hit is closest (or no player hit)

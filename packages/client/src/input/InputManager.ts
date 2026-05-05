@@ -18,10 +18,6 @@ export class InputManager {
   init(canvas: HTMLCanvasElement): void {
     this.canvas = canvas;
 
-    canvas.addEventListener('click', () => {
-      this.requestPointerLock();
-    });
-
     document.addEventListener('mousemove', (e: MouseEvent) => {
       if (!this.isLocked()) return;
       this.mouseDeltaX += e.movementX;

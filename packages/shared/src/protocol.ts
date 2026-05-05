@@ -305,7 +305,8 @@ export function encodePlayerLeave(id: number): ArrayBuffer {
   return buffer;
 }
 
-export function encodeShootConfirm(seq: number, hit: boolean): ArrayBuffer {
+// hitType: 0 = miss, 1 = body hit, 2 = headshot
+export function encodeShootConfirm(seq: number, hit: boolean, hitType: number = hit ? 1 : 0): ArrayBuffer {
   const payloadSize = 4 + 1;
   const totalSize = HEADER_SIZE + payloadSize;
   const buffer = new ArrayBuffer(totalSize);
@@ -315,7 +316,7 @@ export function encodeShootConfirm(seq: number, hit: boolean): ArrayBuffer {
 
   let offset = HEADER_SIZE;
   view.setUint32(offset, seq, true); offset += 4;
-  view.setUint8(offset, hit ? 1 : 0); offset += 1;
+  view.setUint8(offset, hitType); offset += 1;
 
   return buffer;
 }
@@ -354,12 +355,12 @@ function decodePlayerLeave(buffer: ArrayBuffer): { id: number } {
   return { id };
 }
 
-function decodeShootConfirm(buffer: ArrayBuffer): { seq: number; hit: boolean } {
+function decodeShootConfirm(buffer: ArrayBuffer): { seq: number; hit: boolean; hitType: number } {
   const view = new DataView(buffer);
   let offset = HEADER_SIZE;
   const seq = view.getUint32(offset, true); offset += 4;
-  const hit = view.getUint8(offset) !== 0; offset += 1;
-  return { seq, hit };
+  const hitType = view.getUint8(offset); offset += 1;
+  return { seq, hit: hitType > 0, hitType };
 }
 
 export function decode(buffer: ArrayBuffer): { type: MessageType; data: any } {

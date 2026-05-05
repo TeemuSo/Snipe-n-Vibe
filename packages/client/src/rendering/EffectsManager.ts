@@ -140,8 +140,32 @@ export class EffectsManager {
   showHitMarker(): void {
     const el = document.getElementById('hit-marker');
     if (!el) return;
+    el.style.color = '#fff';
+    el.style.fontSize = '24px';
     el.classList.add('show');
     setTimeout(() => el.classList.remove('show'), 150);
+  }
+
+  showHeadshotMarker(): void {
+    const el = document.getElementById('hit-marker');
+    if (!el) return;
+    el.style.color = '#ff2222';
+    el.style.fontSize = '32px';
+    el.classList.add('show');
+    setTimeout(() => {
+      el.classList.remove('show');
+      el.style.color = '#fff';
+      el.style.fontSize = '24px';
+    }, 250);
+  }
+
+  showKillConfirmation(): void {
+    const el = document.getElementById('kill-confirmation');
+    if (!el) return;
+    el.classList.remove('show');
+    // Force reflow to restart animation
+    void el.offsetWidth;
+    el.classList.add('show');
   }
 
   showDamageVignette(): void {

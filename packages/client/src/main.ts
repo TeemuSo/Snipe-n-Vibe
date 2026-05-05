@@ -34,26 +34,49 @@ async function main() {
   const hud = new HUD();
   const audioManager = new AudioManager();
 
-  // Wait for user click to start
+  // Network — connect early so we can show "Connecting..." state
+  const networkManager = new NetworkManager();
+  const wsUrl = import.meta.env.VITE_WS_URL || `ws://${window.location.hostname || 'localhost'}:8080`;
+  networkManager.connect(wsUrl);
+
+  // Wait for WebSocket connection, then transition start screen to "Click to Play"
   await new Promise<void>((resolve) => {
-    const startScreen = document.getElementById('start-screen');
-    if (startScreen) {
-      startScreen.addEventListener('click', () => resolve(), { once: true });
-    } else {
+    if (networkManager.connected) {
       resolve();
+    } else {
+      const originalOnConnect = networkManager.connection.onConnect;
+      networkManager.connection.onConnect = () => {
+        if (originalOnConnect) originalOnConnect();
+        resolve();
+      };
     }
   });
-  hud.hideStartScreen();
+  hud.showStartScreenReady();
 
-  // Initialize audio after user gesture (required by browsers)
-  audioManager.init();
-
-  // Init Rapier WASM
+  // Init Rapier WASM in parallel while user reads the start screen
   await RAPIER.init();
 
   // Renderer
   const renderer = new Renderer();
   const canvas = renderer.getCanvas();
+
+  // Wait for user click to start — this single click also acquires pointer lock
+  await new Promise<void>((resolve) => {
+    const startScreen = document.getElementById('start-screen');
+    if (startScreen) {
+      startScreen.addEventListener('click', () => {
+        hud.hideStartScreen();
+        canvas.requestPointerLock();
+        resolve();
+      }, { once: true });
+    } else {
+      canvas.requestPointerLock();
+      resolve();
+    }
+  });
+
+  // Initialize audio after user gesture (required by browsers)
+  audioManager.init();
 
   // Physics
   const physics = await ClientPhysics.init();
@@ -80,13 +103,24 @@ async function main() {
   const effectsManager = new EffectsManager(renderer.scene);
   const shootingSystem = new ShootingSystem(renderer.scene, fpsCamera.camera);
 
-  // Network
-  const networkManager = new NetworkManager();
   const remotePlayers = new Map<number, RemotePlayer>();
 
-  // Connect to server
-  const wsUrl = import.meta.env.VITE_WS_URL || `ws://${window.location.hostname || 'localhost'}:8080`;
-  networkManager.connect(wsUrl);
+  // Pause overlay: show when pointer lock is lost, hide when re-acquired
+  document.addEventListener('pointerlockchange', () => {
+    if (document.pointerLockElement === canvas) {
+      hud.hidePauseOverlay();
+    } else {
+      hud.showPauseOverlay();
+    }
+  });
+
+  // Click on pause overlay to re-acquire pointer lock
+  const pauseOverlay = document.getElementById('pause-overlay');
+  if (pauseOverlay) {
+    pauseOverlay.addEventListener('click', () => {
+      inputManager.requestPointerLock();
+    });
+  }
 
   // Hold breath state
   let holdBreathStart = 0;
@@ -131,10 +165,19 @@ async function main() {
     }
   };
 
-  networkManager.onHitConfirmed = (hit: boolean) => {
-    if (hit) {
-      effectsManager.showHitMarker();
-      audioManager.playHitMarker();
+  // Track last confirmed hit type for kill feedback (was it a headshot kill?)
+  let lastConfirmedHitType = 0;
+
+  networkManager.onHitConfirmed = (_hit: boolean, hitType: number) => {
+    // Server authoritative confirmation — record type for kill feedback.
+    // Instant hit feedback is already provided by onLocalHit (client prediction).
+    // If server says headshot but client didn't predict it, upgrade the feedback.
+    if (hitType === 2) {
+      lastConfirmedHitType = 2;
+    } else if (hitType === 1) {
+      lastConfirmedHitType = 1;
+    } else {
+      lastConfirmedHitType = 0;
     }
   };
 
@@ -162,12 +205,31 @@ async function main() {
         localPlayer.teleport(sp);
         localPlayer.hp = 100;
       }, 3000);
+    } else if (killerId === networkManager.getLocalPlayerId()) {
+      // We killed someone - show kill confirmation
+      const wasHeadshot = lastConfirmedHitType === 2;
+      effectsManager.showKillConfirmation();
+      hud.showKillConfirmation(deadId, wasHeadshot);
+      audioManager.playKillConfirm();
+      lastConfirmedHitType = 0;
     }
     hud.addKillFeedEntry(`Player ${killerId}`, `Player ${deadId}`);
   };
 
   // Provide world geometry to ShootingSystem for surface raycasting
   shootingSystem.setWorldObjects(worldBuilder.structures);
+
+  // Local hit prediction callback - show instant feedback for headshot vs body
+  shootingSystem.onLocalHit = (_playerId: number, _point: Vec3, isHeadshot: boolean) => {
+    // Instant client-side feedback (server will confirm authoritatively)
+    if (isHeadshot) {
+      effectsManager.showHeadshotMarker();
+      audioManager.playHeadshot();
+    } else {
+      effectsManager.showHitMarker();
+      audioManager.playHitMarker();
+    }
+  };
 
   // Shooting callback - notify the server about shot
   shootingSystem.onShoot = (origin: Vec3, direction: Vec3) => {
@@ -180,9 +242,11 @@ async function main() {
     audioManager.playImpact();
   };
 
-  // Pointer lock on canvas click
+  // Pointer lock re-acquisition on canvas click (e.g., after pressing Escape)
   canvas.addEventListener('click', () => {
-    inputManager.requestPointerLock();
+    if (!inputManager.isLocked()) {
+      inputManager.requestPointerLock();
+    }
   });
 
   // Replay function for server reconciliation
