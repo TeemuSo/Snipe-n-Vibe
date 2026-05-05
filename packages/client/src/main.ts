@@ -263,6 +263,24 @@ async function main() {
     const dt = Math.min((now - lastTime) / 1000, 0.1);
     lastTime = now;
 
+    // Always process network and render remote players, even before pointer lock
+    replayJumpHeld = false;
+    const netResult = networkManager.processMessages(replayFn);
+    if (netResult.correctedState && inputManager.isLocked()) {
+      localPlayer.applyServerState(netResult.correctedState);
+    }
+
+    const nowMs = performance.now();
+    remotePlayers.forEach((rp, id) => {
+      const interpolated = networkManager.getInterpolatedState(id, nowMs);
+      if (interpolated) {
+        rp.updateFromState(interpolated);
+      }
+      rp.interpolate(dt);
+    });
+
+    effectsManager.update(now);
+
     if (!inputManager.isLocked()) {
       renderer.render(fpsCamera.camera);
       return;
@@ -388,25 +406,7 @@ async function main() {
       lastSendTime = now;
     }
 
-    // Process network messages (reset replay jump state before reconciliation)
-    replayJumpHeld = false;
-    const result = networkManager.processMessages(replayFn);
-    if (result.correctedState) {
-      localPlayer.applyServerState(result.correctedState);
-    }
-
-    // Update remote players
-    const nowMs = performance.now();
-    remotePlayers.forEach((rp, id) => {
-      const interpolated = networkManager.getInterpolatedState(id, nowMs);
-      if (interpolated) {
-        rp.updateFromState(interpolated);
-      }
-      rp.interpolate(dt);
-    });
-
-    // Effects
-    effectsManager.update(now);
+    // Effects already updated above
 
     // HUD
     hud.updateHealth(localPlayer.hp, 100);
