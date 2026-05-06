@@ -59,8 +59,8 @@ export class BotManager {
         collider,
         characterController,
         targetPoint: this.randomPatrolPoint(),
-        waitTimer: 0,
-        state: 'moving',
+        waitTimer: 3000 + Math.random() * 5000,
+        state: 'waiting',
         respawnTimer: 0,
         stuckTimer: 0,
         lastDistToTarget: Infinity,
@@ -118,7 +118,7 @@ export class BotManager {
     // Arrived at target
     if (distSq < 4) { // < 2m
       bot.state = 'waiting';
-      bot.waitTimer = 1000 + Math.random() * 2000;
+      bot.waitTimer = 5000 + Math.random() * 10000;
       bot.velocity.x = 0;
       bot.velocity.z = 0;
       bot.stuckTimer = 0;
