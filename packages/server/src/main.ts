@@ -1,4 +1,8 @@
 import RAPIER from '@dimforge/rapier3d-compat';
+import { createServer, IncomingMessage, ServerResponse } from 'http';
+import { readFile } from 'fs/promises';
+import { join, extname } from 'path';
+import { fileURLToPath } from 'url';
 import { WebSocketServer, WebSocket } from 'ws';
 import {
   MessageType,
@@ -58,7 +62,53 @@ async function main(): Promise<void> {
 
   let nextPlayerId = 1;
 
-  const wss = new WebSocketServer({ port: 8080 });
+  const MIME_TYPES: Record<string, string> = {
+    '.html': 'text/html',
+    '.js': 'application/javascript',
+    '.css': 'text/css',
+    '.json': 'application/json',
+    '.png': 'image/png',
+    '.jpg': 'image/jpeg',
+    '.svg': 'image/svg+xml',
+    '.wasm': 'application/wasm',
+    '.woff2': 'font/woff2',
+    '.woff': 'font/woff',
+    '.glb': 'model/gltf-binary',
+  };
+
+  const __dirname = fileURLToPath(new URL('.', import.meta.url));
+  const clientDist = join(__dirname, '../../client/dist');
+
+  const httpServer = createServer(async (req: IncomingMessage, res: ServerResponse) => {
+    let urlPath = req.url?.split('?')[0] || '/';
+    if (urlPath === '/') urlPath = '/index.html';
+
+    const filePath = join(clientDist, urlPath);
+    if (!filePath.startsWith(clientDist)) {
+      res.writeHead(403);
+      res.end();
+      return;
+    }
+
+    try {
+      const data = await readFile(filePath);
+      const ext = extname(filePath);
+      res.writeHead(200, { 'Content-Type': MIME_TYPES[ext] || 'application/octet-stream' });
+      res.end(data);
+    } catch {
+      try {
+        const fallback = await readFile(join(clientDist, 'index.html'));
+        res.writeHead(200, { 'Content-Type': 'text/html' });
+        res.end(fallback);
+      } catch {
+        res.writeHead(404);
+        res.end('Not found');
+      }
+    }
+  });
+
+  httpServer.listen(8080);
+  const wss = new WebSocketServer({ server: httpServer });
 
   wss.on('connection', (ws: WebSocket) => {
     const playerId = nextPlayerId++;

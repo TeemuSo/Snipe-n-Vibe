@@ -19,9 +19,10 @@ else
   cd "$APP_DIR"
 fi
 
-# Install dependencies
+# Install dependencies and build client
 export PATH="/root/.local/share/fnm/node-versions/v22.22.0/installation/bin:$PATH"
 npm install
+npm run build:client
 
 # Restart with pm2
 pm2 delete "$APP_NAME" 2>/dev/null || true

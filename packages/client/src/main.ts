@@ -40,7 +40,11 @@ async function main() {
 
   // Network — connect early so we can show "Connecting..." state
   const networkManager = new NetworkManager();
-  const wsUrl = import.meta.env.VITE_WS_URL || `ws://${window.location.hostname || 'localhost'}:8080`;
+  const isSecure = window.location.protocol === 'https:';
+  const wsUrl = import.meta.env.VITE_WS_URL
+    || (isSecure
+      ? `wss://${window.location.host}`
+      : `ws://${window.location.hostname || 'localhost'}:8080`);
   networkManager.connect(wsUrl);
 
   // Wait for WebSocket connection, then transition start screen to "Click to Play"
