@@ -31,6 +31,8 @@ export class Connection {
       this.ws.close();
     }
 
+    this.inboundQueue = [];
+
     const ws = new WebSocket(url);
     ws.binaryType = 'arraybuffer';
     this.ws = ws;

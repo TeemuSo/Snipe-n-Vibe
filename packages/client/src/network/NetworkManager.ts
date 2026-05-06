@@ -96,7 +96,12 @@ export class NetworkManager {
     let correctedState: PlayerState | null = null;
 
     for (let i = 0; i < messages.length; i++) {
-      const { type, data } = decode(messages[i]);
+      let type, data;
+      try {
+        ({ type, data } = decode(messages[i]));
+      } catch {
+        continue;
+      }
 
       switch (type) {
         case MessageType.SERVER_INIT: {

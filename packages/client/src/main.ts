@@ -181,9 +181,16 @@ async function main() {
     scoreboard.updateScores(scores);
   };
 
-  // Set local player ID on scoreboard when init is received
-  networkManager.onInitReceived = (_playerId: number, _snapshot) => {
-    scoreboard.setLocalPlayerId(_playerId);
+  // On server init: teleport local player to server-assigned position and set scoreboard ID
+  networkManager.onInitReceived = (playerId: number, snapshot) => {
+    scoreboard.setLocalPlayerId(playerId);
+    for (const p of snapshot.players) {
+      if (p.id === playerId) {
+        localPlayer.teleport(p.position);
+        localPlayer.hp = p.hp;
+        break;
+      }
+    }
   };
 
   // Hold breath state
@@ -407,7 +414,7 @@ async function main() {
     // Always process network and render remote players, even before pointer lock
     replayJumpHeld = false;
     const netResult = networkManager.processMessages(replayFn);
-    if (netResult.correctedState && inputManager.isLocked()) {
+    if (netResult.correctedState) {
       localPlayer.applyServerState(netResult.correctedState);
     }
 

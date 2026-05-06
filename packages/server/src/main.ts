@@ -114,6 +114,7 @@ async function main(): Promise<void> {
     const playerId = nextPlayerId++;
     const spawnPos = playerManager.getSpawnPosition();
     const player = playerManager.addPlayer(playerId, ws, spawnPos);
+    console.log(`[CONNECT] Player ${playerId} joined (total: ${playerManager.getAllPlayers().length} players, ${BOT_COUNT} bots)`);
 
     // Register player in score manager
     scoreManager.registerPlayer(`player_${playerId}`, `Player ${playerId}`);
@@ -168,6 +169,7 @@ async function main(): Promise<void> {
 
     ws.on('close', () => {
       playerManager.removePlayer(playerId);
+      console.log(`[DISCONNECT] Player ${playerId} left (remaining: ${playerManager.getAllPlayers().length})`);
       const leaveBuffer = encodePlayerLeave(playerId);
       for (const other of playerManager.getAllPlayers()) {
         if (other.ws.readyState === WebSocket.OPEN) {
