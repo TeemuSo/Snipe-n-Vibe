@@ -50,8 +50,9 @@ export class PhysicsWorld {
     collider: RAPIER.Collider;
     characterController: RAPIER.KinematicCharacterController;
   } {
+    // position is foot position; rigid body translation is capsule center
     const bodyDesc = RAPIER.RigidBodyDesc.kinematicPositionBased()
-      .setTranslation(position.x, position.y, position.z);
+      .setTranslation(position.x, position.y + PLAYER_HEIGHT / 2, position.z);
     const rigidBody = this.world.createRigidBody(bodyDesc);
 
     const halfHeight = PLAYER_HEIGHT / 2 - PLAYER_RADIUS;
@@ -67,9 +68,12 @@ export class PhysicsWorld {
     return { rigidBody, collider, characterController };
   }
 
-  removePlayerBody(rigidBody: RAPIER.RigidBody, collider: RAPIER.Collider): void {
+  removePlayerBody(rigidBody: RAPIER.RigidBody, collider: RAPIER.Collider, characterController?: RAPIER.KinematicCharacterController): void {
     this.world.removeCollider(collider, true);
     this.world.removeRigidBody(rigidBody);
+    if (characterController) {
+      this.world.removeCharacterController(characterController);
+    }
   }
 
   step(): void {

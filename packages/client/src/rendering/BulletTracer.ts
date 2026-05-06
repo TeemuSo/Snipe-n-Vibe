@@ -10,6 +10,7 @@ interface ActiveBullet {
   startTime: number;
   trail: THREE.Line;
   trailPositions: THREE.Vector3[];
+  tipLight: THREE.PointLight;
 }
 
 export class BulletTracerManager {
@@ -18,16 +19,20 @@ export class BulletTracerManager {
   private bulletGeometry: THREE.CapsuleGeometry;
   private bulletMaterial: THREE.MeshBasicMaterial;
 
+  public onBulletImpact: ((point: Vec3, normal: Vec3) => void) | null = null;
+
   constructor(scene: THREE.Scene) {
     this.scene = scene;
-    // Shared geometry for all bullets — small bright capsule
-    this.bulletGeometry = new THREE.CapsuleGeometry(0.02, 0.2, 2, 4);
+    // Shared geometry for all bullets — bright capsule, visible at distance
+    this.bulletGeometry = new THREE.CapsuleGeometry(0.03, 0.2, 2, 4);
     this.bulletMaterial = new THREE.MeshBasicMaterial({
       color: 0xffcc44,
       transparent: true,
       opacity: 1.0,
       toneMapped: false,
     });
+    // Boost emissive-like brightness via material color intensity
+    // MeshBasicMaterial doesn't have emissive, but toneMapped: false already makes it pop
   }
 
   spawnBullet(origin: Vec3, direction: Vec3): void {
@@ -85,6 +90,11 @@ export class BulletTracerManager {
     trail.frustumCulled = false;
     this.scene.add(trail);
 
+    // Subtle glow light on the bullet tip — visible in dark areas
+    const tipLight = new THREE.PointLight(0xffcc44, 0.5, 3);
+    tipLight.position.set(origin.x, origin.y, origin.z);
+    this.scene.add(tipLight);
+
     const bullet: ActiveBullet = {
       mesh,
       position: new THREE.Vector3(origin.x, origin.y, origin.z),
@@ -92,6 +102,7 @@ export class BulletTracerManager {
       startTime: performance.now(),
       trail,
       trailPositions,
+      tipLight,
     };
 
     this.bullets.push(bullet);
@@ -118,8 +129,9 @@ export class BulletTracerManager {
       bullet.position.y += bullet.velocity.y * dt;
       bullet.position.z += bullet.velocity.z * dt;
 
-      // Update mesh position
+      // Update mesh position and tip light
       bullet.mesh.position.copy(bullet.position);
+      bullet.tipLight.position.copy(bullet.position);
 
       // Orient mesh along velocity direction
       const speed = bullet.velocity.length();
@@ -144,7 +156,23 @@ export class BulletTracerManager {
       }
       posAttr.needsUpdate = true;
 
-      // Remove if bullet went well below ground
+      // Detect ground impact: bullet crossed y=0 this frame
+      if (bullet.position.y <= 0 && bullet.velocity.y < 0) {
+        // Clamp position to ground level for impact point
+        const impactPoint: Vec3 = {
+          x: bullet.position.x,
+          y: 0,
+          z: bullet.position.z,
+        };
+        const groundNormal: Vec3 = { x: 0, y: 1, z: 0 };
+        if (this.onBulletImpact) {
+          this.onBulletImpact(impactPoint, groundNormal);
+        }
+        this.removeBullet(i);
+        continue;
+      }
+
+      // Remove if bullet went well below ground (fallback)
       if (bullet.position.y < -5) {
         this.removeBullet(i);
         continue;
@@ -159,6 +187,8 @@ export class BulletTracerManager {
     this.scene.remove(bullet.trail);
     bullet.trail.geometry.dispose();
     (bullet.trail.material as THREE.Material).dispose();
+    this.scene.remove(bullet.tipLight);
+    bullet.tipLight.dispose();
     this.bullets.splice(index, 1);
   }
 

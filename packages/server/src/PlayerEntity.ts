@@ -12,6 +12,7 @@ import {
   FIRE_RATE,
   MAGAZINE_SIZE,
   RELOAD_TIME,
+  PLAYER_HEIGHT,
 } from '@dayzcopy/shared';
 
 export class PlayerEntity {
@@ -149,7 +150,8 @@ export class PlayerEntity {
 
     this.rigidBody.setNextKinematicTranslation(newPos);
 
-    this.position = { x: newPos.x, y: newPos.y, z: newPos.z };
+    // Store as foot position (capsule center minus half height)
+    this.position = { x: newPos.x, y: newPos.y - PLAYER_HEIGHT / 2, z: newPos.z };
 
     this.isGrounded = this.characterController.computedGrounded();
     if (this.isGrounded && this.velocity.y < 0) {
@@ -162,7 +164,11 @@ export class PlayerEntity {
 
   applyDamage(amount: number): boolean {
     this.hp = Math.max(0, this.hp - amount);
-    return this.hp <= 0;
+    if (this.hp <= 0) {
+      this.collider.setEnabled(false);
+      return true;
+    }
+    return false;
   }
 
   respawn(pos: Vec3): void {
@@ -171,7 +177,9 @@ export class PlayerEntity {
     this.isReloading = false;
     this.velocity = { x: 0, y: 0, z: 0 };
     this.position = { ...pos };
-    this.rigidBody.setNextKinematicTranslation({ x: pos.x, y: pos.y, z: pos.z });
+    // pos is foot position; rigid body needs capsule center
+    this.rigidBody.setNextKinematicTranslation({ x: pos.x, y: pos.y + PLAYER_HEIGHT / 2, z: pos.z });
+    this.collider.setEnabled(true);
   }
 
   canFire(): boolean {
@@ -204,6 +212,7 @@ export class PlayerEntity {
 
   syncFromPhysics(): void {
     const pos = this.rigidBody.translation();
-    this.position = { x: pos.x, y: pos.y, z: pos.z };
+    // Convert capsule center to foot position
+    this.position = { x: pos.x, y: pos.y - PLAYER_HEIGHT / 2, z: pos.z };
   }
 }

@@ -135,8 +135,9 @@ export class ProjectileManager {
         if (hitEntityId !== null && hitEntityPosition !== null) {
           // Determine headshot
           const hitPointY = rayResult.point!.y;
-          const entityBaseY = hitEntityPosition.y;
-          const headThreshold = entityBaseY + PLAYER_HEIGHT * 0.8;
+          // hitEntityPosition.y is foot position (after Bug 1 fix)
+          const entityFootY = hitEntityPosition.y;
+          const headThreshold = entityFootY + PLAYER_HEIGHT * 0.8;
           const isHeadshot = hitPointY >= headThreshold;
 
           if (this.onHit) {

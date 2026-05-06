@@ -95,7 +95,9 @@ export class BotManager {
       bot.position = { ...spawnPoint };
       bot.velocity = { x: 0, y: 0, z: 0 };
       bot.targetPoint = this.randomPatrolPoint();
-      bot.rigidBody.setNextKinematicTranslation({ x: spawnPoint.x, y: spawnPoint.y, z: spawnPoint.z });
+      // spawnPoint is foot position; rigid body needs capsule center
+      bot.rigidBody.setNextKinematicTranslation({ x: spawnPoint.x, y: spawnPoint.y + PLAYER_HEIGHT / 2, z: spawnPoint.z });
+      bot.collider.setEnabled(true);
     }
   }
 
@@ -160,7 +162,8 @@ export class BotManager {
     };
 
     bot.rigidBody.setNextKinematicTranslation(newPos);
-    bot.position = { x: newPos.x, y: newPos.y, z: newPos.z };
+    // Store as foot position (capsule center minus half height)
+    bot.position = { x: newPos.x, y: newPos.y - PLAYER_HEIGHT / 2, z: newPos.z };
 
     const grounded = bot.characterController.computedGrounded();
     if (grounded && bot.velocity.y < 0) {
@@ -176,6 +179,7 @@ export class BotManager {
     if (bot.hp <= 0) {
       bot.state = 'dead';
       bot.respawnTimer = RESPAWN_TIME;
+      bot.collider.setEnabled(false);
       return true;
     }
     return false;

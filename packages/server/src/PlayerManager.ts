@@ -34,7 +34,7 @@ export class PlayerManager {
   removePlayer(id: number): void {
     const player = this.players.get(id);
     if (player) {
-      this.physicsWorld.removePlayerBody(player.entity.rigidBody, player.entity.collider);
+      this.physicsWorld.removePlayerBody(player.entity.rigidBody, player.entity.collider, player.entity.characterController);
       this.players.delete(id);
     }
   }

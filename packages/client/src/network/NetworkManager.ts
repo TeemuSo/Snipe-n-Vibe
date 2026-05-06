@@ -103,6 +103,15 @@ export class NetworkManager {
           const { playerId, snapshot } = data as { playerId: number; snapshot: WorldSnapshot };
           this.localPlayerId = playerId;
 
+          // Reset prediction buffer for fresh session
+          this.prediction.reset();
+
+          // Clear any stale remote players (they'll be re-created from the init data)
+          for (const [id] of this.remotePlayers) {
+            if (this.onPlayerLeave) this.onPlayerLeave(id);
+          }
+          this.remotePlayers.clear();
+
           // Initialize remote players from snapshot and fire onPlayerJoin so the
           // caller can create Three.js meshes for each one (including bots).
           const clientNow = performance.now();

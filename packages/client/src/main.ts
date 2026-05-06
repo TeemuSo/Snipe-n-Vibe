@@ -107,6 +107,13 @@ async function main() {
   const effectsManager = new EffectsManager(renderer.scene);
   const bulletTracerManager = new BulletTracerManager(renderer.scene);
 
+  // Wire bullet impact effects: when tracer hits ground, spawn explosion + decal + sound
+  bulletTracerManager.onBulletImpact = (point, normal) => {
+    effectsManager.spawnBulletImpactExplosion(point, normal);
+    effectsManager.spawnBulletDecal(point, normal);
+    audioManager.playImpact();
+  };
+
   const remotePlayers = new Map<number, RemotePlayer>();
 
   // === MW2-style Kill Streak State ===
@@ -246,10 +253,9 @@ async function main() {
         isHoldingBreath = false;
         hud.hideScope();
       }
-      // Respawn after 3s
+      // Respawn after 3s — trust server position from next snapshot
+      // (death screen auto-hides via HUD.showDeathScreen timeout)
       setTimeout(() => {
-        const sp = spawnPoints[Math.floor(Math.random() * spawnPoints.length)];
-        localPlayer.teleport(sp);
         localPlayer.hp = 100;
       }, 3000);
     } else if (killerId === networkManager.getLocalPlayerId()) {
@@ -329,7 +335,7 @@ async function main() {
   // Replay function for server reconciliation
   let replayJumpHeld = false;
   const replayFn = (state: PlayerState, input: InputPayload): PlayerState => {
-    const dt = input.deltaTime;
+    const dt = Math.max(1 / 128, Math.min(1 / 15, input.deltaTime));
     const speed = input.sprint ? MOVE_SPEED * SPRINT_MULTIPLIER : MOVE_SPEED;
     let dx = 0;
     let dz = 0;

@@ -6,6 +6,8 @@ import {
   encodePlayerHit,
   encodePlayerDied,
 } from '@dayzcopy/shared';
+
+const PLAYER_RESPAWN_DELAY = 3000; // ms - matches client death screen
 import { PlayerManager } from './PlayerManager';
 import { ProjectileManager } from './ProjectileManager';
 import { BotManager } from './BotManager';
@@ -77,6 +79,12 @@ export class CombatSystem {
       const shooter = this.playerManager.getPlayer(shot.shooterId);
       if (!shooter) continue;
 
+      // Dead players cannot shoot
+      if (shooter.entity.hp <= 0) {
+        this.sendToPlayer(shot.shooterId, encodeShootConfirm(shot.seq, false));
+        continue;
+      }
+
       if (!shooter.entity.canFire()) {
         this.sendToPlayer(shot.shooterId, encodeShootConfirm(shot.seq, false));
         continue;
@@ -129,8 +137,14 @@ export class CombatSystem {
         if (died) {
           this.broadcastAll(encodePlayerDied(targetId, shooterId));
           this.recordKillAndBroadcastScores(shooterId, targetId);
-          const spawnPos = this.playerManager.getSpawnPosition();
-          target.entity.respawn(spawnPos);
+          // Delay respawn to match client death screen
+          setTimeout(() => {
+            const respawnTarget = this.playerManager.getPlayer(targetId);
+            if (respawnTarget) {
+              const spawnPos = this.playerManager.getSpawnPosition();
+              respawnTarget.entity.respawn(spawnPos);
+            }
+          }, PLAYER_RESPAWN_DELAY);
         }
       } else {
         this.sendToPlayer(shooterId, encodeShootConfirm(seq, false, 0));
