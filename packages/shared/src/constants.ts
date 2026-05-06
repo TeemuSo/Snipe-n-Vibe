@@ -35,7 +35,7 @@ export const MAX_EXTRAPOLATION = 250;
 export const MAP_SIZE = 400;
 
 // Ballistics
-export const BULLET_SPEED = 200; // m/s muzzle velocity (slower = more visible drop)
+export const BULLET_SPEED = 600; // m/s muzzle velocity (sniper rifle)
 export const BULLET_GRAVITY = 9.81; // m/s² — real physics for rangefinder compatibility
 export const BULLET_MAX_LIFETIME = 3000; // ms before bullet despawns
-export const BULLET_MAX_DISTANCE = 500; // meters max range
+export const BULLET_MAX_DISTANCE = 800; // meters max range

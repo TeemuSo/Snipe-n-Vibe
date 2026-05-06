@@ -69,7 +69,9 @@ export class CombatSystem {
     const dy = origin.y - pos.y;
     const dz = origin.z - pos.z;
     const distSq = dx * dx + dy * dy + dz * dz;
-    if (distSq > 25) return;
+    if (distSq > 25) {
+      return;
+    }
 
     this.pendingShots.push({ shooterId, seq, origin, direction, tick });
   }
@@ -79,7 +81,6 @@ export class CombatSystem {
       const shooter = this.playerManager.getPlayer(shot.shooterId);
       if (!shooter) continue;
 
-      // Dead players cannot shoot
       if (shooter.entity.hp <= 0) {
         this.sendToPlayer(shot.shooterId, encodeShootConfirm(shot.seq, false));
         continue;
@@ -91,8 +92,6 @@ export class CombatSystem {
       }
 
       shooter.entity.fire();
-
-      // Spawn a projectile instead of instant raycast
       this.projectileManager.spawnBullet(shot.shooterId, shot.seq, shot.origin, shot.direction);
     }
 
@@ -137,7 +136,6 @@ export class CombatSystem {
         if (died) {
           this.broadcastAll(encodePlayerDied(targetId, shooterId));
           this.recordKillAndBroadcastScores(shooterId, targetId);
-          // Delay respawn to match client death screen
           setTimeout(() => {
             const respawnTarget = this.playerManager.getPlayer(targetId);
             if (respawnTarget) {

@@ -291,19 +291,12 @@ async function main() {
       const rp = remotePlayers.get(deadId);
       if (rp) {
         rp.playDeathAnimation();
-        // Hide after 2 seconds (bot will reappear from snapshot when respawned)
-        setTimeout(() => {
-          rp.hide();
-        }, 2000);
       }
     } else {
       // Someone else killed someone else — just play death animation
       const rp = remotePlayers.get(deadId);
       if (rp) {
         rp.playDeathAnimation();
-        setTimeout(() => {
-          rp.hide();
-        }, 2000);
       }
     }
 
@@ -418,8 +411,9 @@ async function main() {
     remotePlayers.forEach((rp, id) => {
       const interpolated = networkManager.getInterpolatedState(id, nowMs);
       if (interpolated) {
-        // If the player was dead and now reappears (server sent new position), reset them
-        if (rp.dead) {
+        // Only reset dead state when the server shows the entity alive again (hp > 0)
+        const remoteData = networkManager.getRemotePlayers().get(id);
+        if (rp.dead && remoteData && remoteData.state.hp > 0) {
           rp.show();
         }
         rp.updateFromState(interpolated);

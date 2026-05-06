@@ -5,8 +5,6 @@ import {
   MOVE_SPEED,
   MAX_HP,
   PLAYER_HEIGHT,
-  PLAYER_RADIUS,
-  MAP_SIZE,
   MAGAZINE_SIZE,
   BOT_PATROL_POINTS,
 } from '@dayzcopy/shared';
@@ -26,6 +24,8 @@ interface Bot {
   waitTimer: number;
   state: 'moving' | 'waiting' | 'dead';
   respawnTimer: number;
+  stuckTimer: number;
+  lastDistToTarget: number;
 }
 
 const RESPAWN_TIME = 5000; // 5 seconds in ms
@@ -35,12 +35,10 @@ const GRAVITY = -9.81;
 export class BotManager {
   private bots: Map<number, Bot> = new Map();
   private physicsWorld: PhysicsWorld;
-  private startId: number;
   private nextId: number;
 
   constructor(physicsWorld: PhysicsWorld, startId: number) {
     this.physicsWorld = physicsWorld;
-    this.startId = startId;
     this.nextId = startId;
   }
 
@@ -64,6 +62,8 @@ export class BotManager {
         waitTimer: 0,
         state: 'moving',
         respawnTimer: 0,
+        stuckTimer: 0,
+        lastDistToTarget: Infinity,
       };
 
       this.bots.set(id, bot);
@@ -113,31 +113,41 @@ export class BotManager {
     const dx = bot.targetPoint.x - bot.position.x;
     const dz = bot.targetPoint.z - bot.position.z;
     const distSq = dx * dx + dz * dz;
+    const dist = Math.sqrt(distSq);
 
     // Arrived at target
     if (distSq < 4) { // < 2m
       bot.state = 'waiting';
-      bot.waitTimer = 1000 + Math.random() * 2000; // 1-3 seconds
+      bot.waitTimer = 1000 + Math.random() * 2000;
       bot.velocity.x = 0;
       bot.velocity.z = 0;
+      bot.stuckTimer = 0;
+      bot.lastDistToTarget = Infinity;
       return;
     }
 
-    const dist = Math.sqrt(distSq);
+    // Stuck detection: if not making progress toward target, pick a new one
+    if (dist >= bot.lastDistToTarget - 0.1) {
+      bot.stuckTimer += dt * 1000;
+      if (bot.stuckTimer > 2000) {
+        bot.targetPoint = this.randomPatrolPoint();
+        bot.stuckTimer = 0;
+        bot.lastDistToTarget = Infinity;
+        return;
+      }
+    } else {
+      bot.stuckTimer = 0;
+    }
+    bot.lastDistToTarget = dist;
+
     const dirX = dx / dist;
     const dirZ = dz / dist;
 
-    // Compute desired yaw from movement direction
     const desiredYaw = Math.atan2(dirX, dirZ);
-    // Smooth yaw turning
     let yawDiff = desiredYaw - bot.yaw;
-    // Normalize to -PI..PI
     while (yawDiff > Math.PI) yawDiff -= Math.PI * 2;
     while (yawDiff < -Math.PI) yawDiff += Math.PI * 2;
     bot.yaw += yawDiff * Math.min(1, 3 * dt);
-
-    // Add slight random yaw variation
-    bot.yaw += (Math.random() - 0.5) * 0.02;
 
     const speed = MOVE_SPEED * BOT_SPEED_MULTIPLIER;
     bot.velocity.x = Math.sin(bot.yaw) * speed;
@@ -162,7 +172,6 @@ export class BotManager {
     };
 
     bot.rigidBody.setNextKinematicTranslation(newPos);
-    // Store as foot position (capsule center minus half height)
     bot.position = { x: newPos.x, y: newPos.y - PLAYER_HEIGHT / 2, z: newPos.z };
 
     const grounded = bot.characterController.computedGrounded();
@@ -188,7 +197,6 @@ export class BotManager {
   getBotStates(): PlayerState[] {
     const states: PlayerState[] = [];
     for (const bot of this.bots.values()) {
-      if (bot.state === 'dead') continue;
       states.push({
         id: bot.id,
         position: { ...bot.position },

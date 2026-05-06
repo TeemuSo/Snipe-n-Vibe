@@ -4,8 +4,6 @@ import {
   BULLET_GRAVITY,
   BULLET_MAX_LIFETIME,
   BULLET_MAX_DISTANCE,
-  WEAPON_DAMAGE,
-  HEADSHOT_MULTIPLIER,
   PLAYER_HEIGHT,
 } from '@dayzcopy/shared';
 import { PhysicsWorld } from './PhysicsWorld';
@@ -77,6 +75,9 @@ export class ProjectileManager {
     for (let i = this.bullets.length - 1; i >= 0; i--) {
       const bullet = this.bullets[i];
 
+      // Apply gravity to velocity BEFORE raycast so the ray direction matches actual movement
+      bullet.velocity.y -= BULLET_GRAVITY * dt;
+
       // Calculate step distance
       const speed = Math.sqrt(
         bullet.velocity.x * bullet.velocity.x +
@@ -112,6 +113,7 @@ export class ProjectileManager {
         const allPlayers = this.playerManager.getAllPlayers();
         for (const player of allPlayers) {
           if (player.id === bullet.shooterId) continue;
+          if (player.entity.hp <= 0) continue;
           if (player.entity.collider.handle === rayResult.colliderHandle) {
             hitEntityId = player.id;
             hitEntityPosition = player.entity.position;
@@ -133,9 +135,7 @@ export class ProjectileManager {
         }
 
         if (hitEntityId !== null && hitEntityPosition !== null) {
-          // Determine headshot
           const hitPointY = rayResult.point!.y;
-          // hitEntityPosition.y is foot position (after Bug 1 fix)
           const entityFootY = hitEntityPosition.y;
           const headThreshold = entityFootY + PLAYER_HEIGHT * 0.8;
           const isHeadshot = hitPointY >= headThreshold;
@@ -146,7 +146,6 @@ export class ProjectileManager {
           this.bullets.splice(i, 1);
           continue;
         } else {
-          // Hit world geometry (wall, ground, etc.) — bullet stops
           if (this.onMiss) {
             this.onMiss(bullet.shooterId, bullet.seq);
           }
@@ -155,10 +154,7 @@ export class ProjectileManager {
         }
       }
 
-      // Apply gravity to velocity
-      bullet.velocity.y -= BULLET_GRAVITY * dt;
-
-      // Update position
+      // Update position (gravity already applied above)
       bullet.position.x += bullet.velocity.x * dt;
       bullet.position.y += bullet.velocity.y * dt;
       bullet.position.z += bullet.velocity.z * dt;
